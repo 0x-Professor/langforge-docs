@@ -2,7 +2,7 @@ import { DocSection, FeatureCard, QuickStart } from '@/components/DocSection';
 import { CodeBlock } from '@/components/CodeBlock';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Settings, BarChart3, Eye, AlertTriangle, Zap, Target, Clock, CheckCircle, AlertCircle, GitBranch, Code2, Server, BookOpen, Terminal, BarChart, AlertOctagon } from 'lucide-react';
+import { Settings, BarChart3, Eye, AlertTriangle, Zap, Target, Clock, CheckCircle, AlertCircle, GitBranch, Code2, Server, BookOpen, Terminal, BarChart, AlertOctagon, Info } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -456,42 +456,130 @@ if __name__ == "__main__":
         <TabsContent value="quickstart" className="space-y-8">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Zap className="w-5 h-5 text-amber-500" />
-                Quick Start with LangSmith
-              </CardTitle>
-              <CardDescription>
-                Get started with LangSmith in minutes. Follow these steps to set up monitoring and evaluation for your LLM applications.
-              </CardDescription>
+              <div className="flex items-center gap-4">
+                <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-900/20">
+                  <Zap className="w-6 h-6 text-amber-500" />
+                </div>
+                <div>
+                  <CardTitle>Quick Start with LangSmith</CardTitle>
+                  <CardDescription>
+                    Get started with LangSmith in minutes. Follow these steps to set up monitoring and evaluation for your LLM applications.
+                  </CardDescription>
+                </div>
+              </div>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-2">
-                <h3 className="text-lg font-medium flex items-center gap-2">
+            <CardContent className="space-y-8">
+              {/* Prerequisites Section */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                  <CheckCircle className="w-5 h-5" />
+                  Prerequisites
+                </h3>
+                <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
+                  <li>Python 3.8+ or Node.js 16+ installed</li>
+                  <li>LangSmith API key (get it from <a href="https://smith.langchain.com/settings" className="text-primary hover:underline">settings</a>)</li>
+                  <li>Basic understanding of LangChain or LLM applications</li>
+                </ul>
+              </div>
+
+              {/* Installation */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
                   <Terminal className="w-5 h-5 text-blue-500" />
                   1. Installation
                 </h3>
-                <p className="text-muted-foreground">Install the LangSmith Python package:</p>
-                <CodeBlock 
-                  language="bash" 
-                  code="pip install -U langsmith"
-                  showLineNumbers={false}
-                />
+                <div className="space-y-2">
+                  <p className="text-muted-foreground">Install LangSmith using your preferred package manager:</p>
+                  <Tabs defaultValue="python" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2 max-w-xs mb-4">
+                      <TabsTrigger value="python">Python</TabsTrigger>
+                      <TabsTrigger value="typescript">TypeScript</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="python">
+                      <CodeBlock 
+                        language="bash"
+                        code="pip install -U langsmith"
+                        showLineNumbers={false}
+                      />
+                    </TabsContent>
+                    <TabsContent value="typescript">
+                      <CodeBlock 
+                        language="bash"
+                        code="npm install @langchain/langgraph @langchain/langsmith"
+                        showLineNumbers={false}
+                      />
+                    </TabsContent>
+                  </Tabs>
+                  <p className="text-sm text-muted-foreground">
+                    For Jupyter notebook users, you may need to restart the kernel after installation.
+                  </p>
+                </div>
               </div>
               
-              <div className="space-y-2">
-                <h3 className="text-lg font-medium flex items-center gap-2">
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
                   <Settings className="w-5 h-5 text-purple-500" />
                   2. Configure Environment
                 </h3>
-                <p className="text-muted-foreground">Set up your API key and project name:</p>
-                <CodeBlock 
-                  language="bash" 
-                  code={"# Get your API key from https://smith.langchain.com/settings\n" +
-                  "export LANGCHAIN_TRACING_V2=true\n" +
-                  "export LANGCHAIN_API_KEY=your_api_key_here\n" +
-                  "export LANGCHAIN_PROJECT=your_project_name"}
-                  showLineNumbers={true}
-                />
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-muted-foreground mb-2">Set up your environment variables:</p>
+                    <Tabs defaultValue="env" className="w-full">
+                      <TabsList className="grid w-full grid-cols-2 max-w-xs mb-4">
+                        <TabsTrigger value="env">.env File</TabsTrigger>
+                        <TabsTrigger value="bash">Terminal</TabsTrigger>
+                      </TabsList>
+                      <TabsContent value="env">
+                        <CodeBlock 
+                          language="bash"
+                          title=".env"
+                          code={"# Required for LangSmith tracing\n" +
+                          "LANGCHAIN_TRACING_V2=true\n" +
+                          "LANGCHAIN_API_KEY=your_api_key_here\n" +
+                          "LANGCHAIN_PROJECT=your_project_name\n" +
+                          "# Optional: Enable additional debugging\n" +
+                          "LANGCHAIN_VERBOSE=true"}
+                          showLineNumbers={true}
+                        />
+                      </TabsContent>
+                      <TabsContent value="bash">
+                        <CodeBlock 
+                          language="bash"
+                          title="Terminal"
+                          code={"# Get your API key from https://smith.langchain.com/settings\n" +
+                          "export LANGCHAIN_TRACING_V2=true\n" +
+                          "export LANGCHAIN_API_KEY=your_api_key_here\n" +
+                          "export LANGCHAIN_PROJECT=your_project_name"}
+                          showLineNumbers={true}
+                        />
+                      </TabsContent>
+                    </Tabs>
+                  </div>
+                  
+                  <div className="p-4 bg-muted/30 rounded-lg">
+                    <h4 className="font-medium flex items-center gap-2 mb-2">
+                      <Info className="w-4 h-4 text-blue-500" />
+                      Best Practices
+                    </h4>
+                    <ul className="text-sm space-y-1 text-muted-foreground">
+                      <li>• Use different project names for different environments (e.g., <code className="bg-muted px-1 rounded">myapp-dev</code>, <code className="bg-muted px-1 rounded">myapp-prod</code>)</li>
+                      <li>• Never commit API keys to version control - use <code className="bg-muted px-1 rounded">.env</code> files and add them to <code className="bg-muted px-1 rounded">.gitignore</code></li>
+                      <li>• Consider using environment management tools like <code className="bg-muted px-1 rounded">direnv</code> or <code className="bg-muted px-1 rounded">dotenv</code></li>
+                      <li>• For production, use environment variables set in your deployment platform</li>
+                    </ul>
+                  </div>
+                  
+                  <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                    <h4 className="font-medium flex items-center gap-2 text-amber-700 dark:text-amber-400">
+                      <AlertTriangle className="w-4 h-4" />
+                      Security Note
+                    </h4>
+                    <p className="text-sm text-amber-700/80 dark:text-amber-400/80 mt-1">
+                      Keep your API keys secure. Never expose them in client-side code or public repositories. 
+                      Use environment variables and server-side code for API interactions.
+                    </p>
+                  </div>
+                </div>
               </div>
               
               <div className="space-y-2">
