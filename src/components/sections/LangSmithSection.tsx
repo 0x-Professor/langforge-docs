@@ -29,158 +29,408 @@ model = ChatOpenAI(
 # Your traces will automatically appear in LangSmith
 response = model.invoke("Hello, world!")`;
 
-  const evaluationCode = `from langsmith import Client, evaluate
-from langchain_openai import ChatOpenAI
+  const evaluationCode = `# First, install required packages
+# pip install langsmith langchain-openai python-dotenv numpy scikit-learn
 
+import os
+from typing import Dict, List, Any, Optional
+from langsmith import Client, RunEvaluator, EvaluationResult
+from langchain.smith import RunEvalConfig, run_on_dataset
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain.evaluation import load_evaluator
+from langchain.evaluation.schema import StringEvaluator
+from dotenv import load_dotenv
+import numpy as np
+from sklearn.metrics import accuracy_score, f1_score
+
+# Load environment variables
+load_dotenv()
+
+# Initialize clients
 client = Client()
+llm = ChatOpenAI(model="gpt-4", temperature=0)
+embeddings = OpenAIEmbeddings()
 
-# Define your application
-def my_chatbot(inputs):
-    model = ChatOpenAI(model="gpt-4")
-    return {"output": model.invoke(inputs["question"]).content}
-
-# Create evaluation dataset
-dataset = client.create_dataset(
-    "chatbot-eval",
-    description="Evaluation dataset for chatbot"
-)
-
-# Add examples to dataset
-examples = [
-    {"question": "What is Python?", "expected": "Python is a programming language"},
-    {"question": "How to use loops?", "expected": "Use for/while loops"},
-]
-
-for example in examples:
-    client.create_example(
-        inputs={"question": example["question"]},
-        outputs={"expected": example["expected"]},
-        dataset_id=dataset.id
-    )
-
-# Define evaluators
-def correctness_evaluator(run, example):
-    """Evaluate if the response is correct."""
-    prediction = run.outputs["output"]
-    expected = example.outputs["expected"]
+class CustomEvaluator(RunEvaluator):
+    """Custom evaluator that combines multiple evaluation metrics."""
     
-    # Simple similarity check (in practice, use better metrics)
-    score = 1.0 if expected.lower() in prediction.lower() else 0.0
+    def __init__(self):
+        # Initialize evaluators
+        self.embedding_evaluator = load_evaluator("embedding_distance", embeddings=embeddings)
+        self.criteria_evaluator = load_evaluator("criteria", llm=llm)
     
-    return {"key": "correctness", "score": score}
+    def evaluate_run(
+        self, run: Any, example: Optional[Dict] = None
+    ) -> EvaluationResult:
+        """Evaluate an individual run."""
+        if run.error is not None:
+            return EvaluationResult(key="error", score=0, comment=f"Run failed: {run.error}")
+        
+        try:
+            # Get prediction and reference
+            prediction = run.outputs.get("output", "")
+            reference = example.outputs.get("expected", "") if example else ""
+            
+            # Calculate embedding similarity
+            embedding_result = self.embedding_evaluator.evaluate_strings(
+                prediction=prediction,
+                reference=reference
+            })
+            
+            # Evaluate against criteria
+            criteria_result = self.criteria_evaluator.evaluate_strings(
+                prediction=prediction,
+                input=example.inputs.get("question", "") if example else "",
+                criteria={
+                    "relevance": "The response should directly address the question",
+                    "correctness": "The response should be factually accurate",
+                    "completeness": "The response should fully answer the question"
+                }
+            })
+            
+            # Calculate scores (normalize to 0-1 range)
+            embedding_score = 1 - embedding_result["score"]  # Convert distance to similarity
+            criteria_scores = criteria_result.get("results", {})
+            
+            # Calculate final score (weighted average)
+            final_score = (
+                0.4 * embedding_score +
+                0.2 * criteria_scores.get("relevance", 0.5) +
+                0.2 * criteria_scores.get("correctness", 0.5) +
+                0.2 * criteria_scores.get("completeness", 0.5)
+            )
+            
+            return EvaluationResult(
+                key="custom_eval",
+                score=final_score,
+                comment=(
+                    f"Embedding similarity: {embedding_score:.2f}\n"
+                    f"Relevance: {criteria_scores.get('relevance', 0.5):.2f}\n"
+                    f"Correctness: {criteria_scores.get('correctness', 0.5):.2f}\n"
+                    f"Completeness: {criteria_scores.get('completeness', 0.5):.2f}"
+                )
+            )
+            
+        except Exception as e:
+            return EvaluationResult(
+                key="error",
+                score=0,
+                comment=f"Evaluation failed: {str(e)}"
+            )
 
-def relevance_evaluator(run, example):
-    """Evaluate response relevance using LLM."""
-    model = ChatOpenAI(model="gpt-4")
-    
-    prompt = f"""
-    Question: {example.inputs['question']}
-    Response: {run.outputs['output']}
-    
-    Rate the relevance of the response to the question on a scale of 1-5.
-    Return only the number.
+def evaluate_chatbot(
+    dataset_name: str = "chatbot-eval",
+    model_name: str = "gpt-4",
+    max_examples: Optional[int] = None
+) -> Dict[str, Any]:
     """
+    Evaluate a chatbot model on a dataset.
     
-    score = float(model.invoke(prompt).content.strip())
-    return {"key": "relevance", "score": score / 5.0}
+    Args:
+        dataset_name: Name of the dataset to evaluate on
+        model_name: Name of the model to evaluate
+        max_examples: Maximum number of examples to evaluate (None for all)
+        
+    Returns:
+        Dictionary containing evaluation results
+    """
+    try:
+        # Initialize model
+        model = ChatOpenAI(model=model_name, temperature=0.7)
+        
+        # Define the chatbot function
+        def chatbot(inputs: Dict) -> Dict:
+            """Simple chatbot implementation."""
+            try:
+                response = model.invoke(inputs["question"])
+                return {"output": response.content}
+            except Exception as e:
+                return {"output": f"Error: {str(e)}", "error": True}
+        
+        # Configure evaluation
+        eval_config = RunEvalConfig(
+            evaluators=[
+                # Built-in evaluators
+                RunEvalConfig.LabeledScoreString(
+                    criteria={
+                        "relevance": "How relevant is the response to the question?",
+                        "correctness": "Is the response factually correct?",
+                        "completeness": "Does the response fully answer the question?"
+                    },
+                    llm=llm
+                ),
+                # Custom evaluator
+                CustomEvaluator()
+            ],
+            eval_llm=llm,
+            reference_key="expected"
+        )
+        
+        # Run evaluation
+        results = run_on_dataset(
+            client=client,
+            dataset_name=dataset_name,
+            llm_or_chain_factory=chatbot,
+            evaluation=eval_config,
+            max_examples=max_examples,
+            project_name=f"{dataset_name}-eval-{model_name}",
+            verbose=True
+        )
+        
+        # Calculate aggregate metrics
+        metrics = {
+            "model": model_name,
+            "dataset": dataset_name,
+            "total_examples": results.get("total_examples", 0),
+            "success_rate": results.get("success_rate", 0),
+            "avg_score": results.get("avg_score", 0),
+            "evaluation_metrics": {}
+        }
+        
+        # Add detailed metrics from evaluators
+        for eval_name, eval_results in results.get("evaluator_results", {}).items():
+            if hasattr(eval_results, "scores"):
+                scores = [r.get("score", 0) for r in eval_results.scores if r.get("score") is not None]
+                if scores:
+                    metrics["evaluation_metrics"][eval_name] = {
+                        "mean_score": np.mean(scores),
+                        "median_score": np.median(scores),
+                        "min_score": min(scores),
+                        "max_score": max(scores),
+                        "std_dev": np.std(scores) if len(scores) > 1 else 0
+                    }
+        
+        return metrics
+        
+    except Exception as e:
+        return {"error": f"Evaluation failed: {str(e)}"}
 
-# Run evaluation
-results = evaluate(
-    my_chatbot,
-    data=dataset,
-    evaluators=[correctness_evaluator, relevance_evaluator],
-    experiment_prefix="chatbot-eval-v1"
-)
+# Example usage
+if __name__ == "__main__":
+    # Configuration
+    DATASET_NAME = "chatbot-eval"
+    MODEL_NAME = "gpt-4"
+    MAX_EXAMPLES = 10  # Set to None to evaluate all examples
+    
+    print(f"Starting evaluation of {MODEL_NAME} on {DATASET_NAME} dataset...")
+    
+    # Run evaluation
+    results = evaluate_chatbot(
+        dataset_name=DATASET_NAME,
+        model_name=MODEL_NAME,
+        max_examples=MAX_EXAMPLES
+    )
+    
+    # Print results
+    print("\nEvaluation Results:")
+    print("=" * 50)
+    print(f"Model: {results.get('model')}")
+    print(f"Dataset: {results.get('dataset')}")
+    print(f"Examples evaluated: {results.get('total_examples')}")
+    print(f"Success rate: {results.get('success_rate', 0):.1%}")
+    print(f"Average score: {results.get('avg_score', 0):.2f}")
+    
+    # Print detailed metrics
+    print("\nDetailed Metrics:")
+    for eval_name, metrics in results.get("evaluation_metrics", {}).items():
+        print(f"\n{eval_name}:")
+        print(f"  Mean Score: {metrics.get('mean_score', 0):.3f}")
+        print(f"  Score Range: {metrics.get('min_score', 0):.3f} - {metrics.get('max_score', 0):.3f}")
+        print(f"  Std Dev: {metrics.get('std_dev', 0):.3f}")
+    
+    print("\nEvaluation complete!")`;
 
-print(f"Evaluation results: {results}")`;
+  const monitoringCode = `# First, install required packages
+# pip install langsmith langchain-openai python-dotenv
 
-  const monitoringCode = `from langsmith import Client
+import os
+from datetime import datetime, timedelta
+from typing import Dict, Any, Optional
+from langsmith import Client
 from langchain_openai import ChatOpenAI
-from langchain.callbacks import StdOutCallbackHandler
-import time
+from dotenv import load_dotenv
 
+# Load environment variables
+load_dotenv()
+
+# Initialize LangSmith client
 client = Client()
 
 class ProductionMonitor:
     def __init__(self, project_name: str):
+        """Initialize the production monitor with a project name."""
         self.client = Client()
         self.project_name = project_name
         
-    def log_run(self, inputs, outputs, run_type="llm", **metadata):
-        """Log a production run."""
-        run = self.client.create_run(
-            name=f"production-{run_type}",
-            project_name=self.project_name,
-            run_type=run_type,
-            inputs=inputs,
-            outputs=outputs,
-            extra=metadata
-        )
-        return run.id
-    
-    def log_feedback(self, run_id: str, score: float, feedback: str = ""):
-        """Log user feedback for a run."""
-        self.client.create_feedback(
-            run_id=run_id,
-            key="user_satisfaction",
-            score=score,
-            comment=feedback
-        )
-    
-    def get_project_stats(self, days: int = 7):
-        """Get project statistics."""
-        runs = list(self.client.list_runs(
-            project_name=self.project_name,
-            start_time=time.time() - (days * 24 * 60 * 60)
-        ))
+    def log_run(
+        self, 
+        inputs: Dict[str, Any], 
+        outputs: Dict[str, Any], 
+        run_type: str = "llm",
+        **metadata
+    ) -> str:
+        """
+        Log a production run to LangSmith.
         
-        return {
-            "total_runs": len(runs),
-            "error_rate": len([r for r in runs if r.error]) / len(runs) if runs else 0,
-            "avg_latency": sum(r.latency for r in runs if r.latency) / len(runs) if runs else 0
-        }
-
-# Usage in production
-monitor = ProductionMonitor("my-production-app")
-
-# Log application runs
-def production_chatbot(question: str) -> str:
-    start_time = time.time()
+        Args:
+            inputs: Dictionary of input parameters
+            outputs: Dictionary of output values
+            run_type: Type of run (e.g., 'llm', 'chain', 'agent')
+            **metadata: Additional metadata to log
+            
+        Returns:
+            str: The ID of the created run
+        """
+        try:
+            run = self.client.create_run(
+                name=f"production-{run_type}-{datetime.now().strftime('%Y%m%d-%H%M%S')}",
+                project_name=self.project_name,
+                run_type=run_type,
+                inputs=inputs,
+                outputs=outputs,
+                extra={
+                    **metadata,
+                    "environment": os.getenv("ENV", "development"),
+                    "version": os.getenv("APP_VERSION", "1.0.0")
+                }
+            )
+            return str(run.id)
+        except Exception as e:
+            print(f"Error logging run: {str(e)}")
+            raise
     
+    def log_feedback(
+        self, 
+        run_id: str, 
+        score: float, 
+        feedback: str = "",
+        key: str = "user_satisfaction"
+    ) -> None:
+        """
+        Log user feedback for a run.
+        
+        Args:
+            run_id: The ID of the run to log feedback for
+            score: Numeric score (typically 0-1)
+            feedback: Optional text feedback
+            key: The feedback key/name
+        """
+        try:
+            self.client.create_feedback(
+                run_id=run_id,
+                key=key,
+                score=score,
+                comment=feedback
+            )
+        except Exception as e:
+            print(f"Error logging feedback: {str(e)}")
+            raise
+    
+    def get_project_stats(self, days: int = 7) -> Dict[str, Any]:
+        """
+        Get statistics for the project.
+        
+        Args:
+            days: Number of days to look back for statistics
+            
+        Returns:
+            Dictionary containing project statistics
+        """
+        try:
+            # Calculate time range
+            end_time = datetime.now()
+            start_time = end_time - timedelta(days=days)
+            
+            # Get runs for the time period
+            runs = list(self.client.list_runs(
+                project_name=self.project_name,
+                start_time=start_time.timestamp(),
+                end_time=end_time.timestamp()
+            ))
+            
+            if not runs:
+                return {
+                    "total_runs": 0,
+                    "error_rate": 0,
+                    "avg_latency": 0,
+                    "success_rate": 0,
+                    "total_tokens": 0
+                }
+            
+            # Calculate statistics
+            successful_runs = [r for r in runs if not getattr(r, 'error', None)]
+            error_rate = 1 - (len(successful_runs) / len(runs)) if runs else 0
+            
+            latencies = [r.latency for r in runs if hasattr(r, 'latency') and r.latency is not None]
+            avg_latency = sum(latencies) / len(latencies) if latencies else 0
+            
+            # Estimate token usage (this is a simplification)
+            total_tokens = sum(
+                len(str(r.inputs or {})) // 4 + len(str(r.outputs or {})) // 4 
+                for r in successful_runs
+            )
+            
+            return {
+                "total_runs": len(runs),
+                "successful_runs": len(successful_runs),
+                "error_rate": error_rate,
+                "success_rate": 1 - error_rate,
+                "avg_latency": avg_latency,
+                "total_tokens": total_tokens,
+                "time_period": {
+                    "start": start_time.isoformat(),
+                    "end": end_time.isoformat()
+                }
+            }
+            
+        except Exception as e:
+            print(f"Error getting project stats: {str(e)}")
+            raise
+
+# Example usage
+if __name__ == "__main__":
+    # Initialize with your project name
+    monitor = ProductionMonitor("my-production-app")
+    
+    # Example of logging a run
     try:
+        # Simulate a successful API call
+        start_time = datetime.now()
         model = ChatOpenAI(model="gpt-4")
+        question = "What is machine learning?"
         response = model.invoke(question)
         
-        # Log successful run
+        # Log the successful run
         run_id = monitor.log_run(
             inputs={"question": question},
             outputs={"response": response.content},
-            latency=time.time() - start_time,
-            model="gpt-4"
+            run_type="llm",
+            latency=(datetime.now() - start_time).total_seconds(),
+            model="gpt-4",
+            temperature=0.7
         )
         
-        return response.content, run_id
+        print(f"Generated response: {response.content}")
+        print(f"Run logged with ID: {run_id}")
+        
+        # Simulate user feedback
+        monitor.log_feedback(
+            run_id=run_id,
+            score=0.9,  # 0-1 scale
+            feedback="Accurate and helpful response"
+        )
+        
+        # Get project statistics
+        stats = monitor.get_project_stats(days=7)
+        print("\nProject Statistics (last 7 days):")
+        print(f"Total runs: {stats['total_runs']}")
+        print(f"Success rate: {stats['success_rate']:.1%}")
+        print(f"Average latency: {stats['avg_latency']:.2f}s")
+        print(f"Estimated tokens used: {stats['total_tokens']:,}")
         
     except Exception as e:
-        # Log failed run
-        run_id = monitor.log_run(
-            inputs={"question": question},
-            outputs={"error": str(e)},
-            latency=time.time() - start_time,
-            error=True
-        )
-        raise e
-
-# Example usage with feedback
-response, run_id = production_chatbot("What is machine learning?")
-print(response)
-
-# Later, log user feedback
-monitor.log_feedback(run_id, score=0.8, feedback="Good response")
-
-# Get project statistics
-stats = monitor.get_project_stats()
-print(f"Project stats: {stats}")`;
+        print(f"Error in example: {str(e)}")
+        raise`;
 
   return (
     <DocSection
