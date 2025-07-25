@@ -24,7 +24,7 @@ LangForge is a comprehensive documentation platform for LangChain and its ecosys
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/your-org/langforge-docs.git
+   git clone https://github.com/0x-Professor/langforge-docs.git
    cd langforge-docs
    ```
 
