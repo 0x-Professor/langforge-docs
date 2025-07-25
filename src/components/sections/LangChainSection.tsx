@@ -300,6 +300,92 @@ model = Ollama(model="llama2")`;
           </div>
         </div>
 
+        {/* Advanced Features */}
+        <div className="space-y-4">
+          <h2 className="text-2xl font-semibold">Advanced Features</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="shadow-card">
+              <CardHeader>
+                <CardTitle>Agents</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Create autonomous agents that can reason, plan, and use tools to accomplish complex tasks.
+                </p>
+                <div className="space-y-2">
+                  <h5 className="font-medium">Key Components:</h5>
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    <li>• ReActAgent for reasoning and acting</li>
+                    <li>• OpenAI Functions for tool calling</li>
+                    <li>• Custom agent executors</li>
+                    <li>• Memory and state management</li>
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-card">
+              <CardHeader>
+                <CardTitle>Document Processing</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Comprehensive document loading, splitting, and processing capabilities.
+                </p>
+                <div className="space-y-2">
+                  <h5 className="font-medium">Supported Formats:</h5>
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    <li>• PDF, Word, PowerPoint</li>
+                    <li>• CSV, JSON, XML</li>
+                    <li>• Web pages and APIs</li>
+                    <li>• Code repositories</li>
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-card">
+              <CardHeader>
+                <CardTitle>Evaluation & Testing</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Built-in evaluation frameworks for testing LLM applications.
+                </p>
+                <div className="space-y-2">
+                  <h5 className="font-medium">Evaluation Types:</h5>
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    <li>• Response quality metrics</li>
+                    <li>• Retrieval accuracy (RAGAS)</li>
+                    <li>• Custom evaluators</li>
+                    <li>• A/B testing frameworks</li>
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-card">
+              <CardHeader>
+                <CardTitle>Streaming & Callbacks</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Real-time streaming responses and comprehensive callback system.
+                </p>
+                <div className="space-y-2">
+                  <h5 className="font-medium">Features:</h5>
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    <li>• Token-by-token streaming</li>
+                    <li>• Intermediate step callbacks</li>
+                    <li>• Progress tracking</li>
+                    <li>• Error handling hooks</li>
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
         {/* Best Practices */}
         <Card className="shadow-card border-l-4 border-l-primary">
           <CardHeader>
@@ -314,6 +400,8 @@ model = Ollama(model="llama2")`;
                   <li>• Implement proper error handling and retries</li>
                   <li>• Cache expensive operations like embeddings</li>
                   <li>• Use async methods for better performance</li>
+                  <li>• Structure prompts with clear instructions</li>
+                  <li>• Use templates for consistent formatting</li>
                 </ul>
               </div>
               <div className="space-y-3">
@@ -323,6 +411,8 @@ model = Ollama(model="llama2")`;
                   <li>• Implement rate limiting and quotas</li>
                   <li>• Use LangSmith for tracing and debugging</li>
                   <li>• Validate inputs and sanitize outputs</li>
+                  <li>• Set up proper logging and monitoring</li>
+                  <li>• Test with diverse data sets</li>
                 </ul>
               </div>
             </div>

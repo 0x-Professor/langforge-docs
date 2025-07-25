@@ -95,6 +95,7 @@ const NavItemComponent = ({ item, activeSection, onSectionChange, level = 0 }: {
   level?: number;
 }) => {
   const [isExpanded, setIsExpanded] = useState(true);
+  const isParent = item.children && item.children.length > 0;
   const isActive = activeSection === item.id;
   const hasActiveChild = item.children?.some(child => activeSection === child.id);
 
@@ -106,8 +107,10 @@ const NavItemComponent = ({ item, activeSection, onSectionChange, level = 0 }: {
           isActive ? 'bg-primary text-primary-foreground font-medium' : ''
         } ${hasActiveChild ? 'border-l-2 border-primary/20' : ''}`}
         onClick={() => {
+          if (isParent) {
+            setIsExpanded(!isExpanded);
+          }
           onSectionChange(item.id);
-          if (item.children) setIsExpanded(!isExpanded);
         }}
       >
         {item.icon}
