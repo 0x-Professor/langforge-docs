@@ -143,5 +143,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 <div align="center">
-  Made with ❤️ by the Muhammad Mazhar Saeed aka Professor
+  Made with ❤️ by Muhammad Mazhar Saeed aka Professor
 </div>
