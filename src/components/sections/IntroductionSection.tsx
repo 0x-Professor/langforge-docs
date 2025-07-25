@@ -1,49 +1,97 @@
 import { DocSection, FeatureCard, QuickStart } from '@/components/DocSection';
 import { CodeBlock } from '@/components/CodeBlock';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Code, Bot, Database, Zap, GitBranch, Settings, ArrowRight, Shield } from 'lucide-react';
+import { Code, Bot, Database, Zap, GitBranch, Settings, ArrowRight, Shield, BookOpen, Cpu, Network, Server, Code2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
+/**
+ * IntroductionSection Component
+ * 
+ * Provides an overview of the LangChain ecosystem and its core components.
+ * This is the landing page that introduces users to the LangChain platform.
+ */
 export const IntroductionSection = () => {
-  const installCode = `# Install LangChain
+  const installCode = `# Install LangChain core
 pip install langchain
 
-# Install with specific providers
+# Install with specific providers and integrations
 pip install langchain-openai langchain-anthropic
 
-# Install LangGraph for agents
+# Install LangGraph for building stateful, multi-actor applications
 pip install langgraph
 
-# Install LangSmith for monitoring
+# Install LangSmith for monitoring, debugging, and evaluation
 pip install langsmith
 
-# Install LangServe for deployment
+# Install LangServe for deployment and serving models
 pip install langserve[all]`;
 
   const quickExample = `from langchain.chat_models import init_chat_model
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 
-# Initialize your model
-model = init_chat_model("gpt-4", model_provider="openai")
+# Initialize your chat model
+model = init_chat_model(
+    model_name="gpt-4",
+    model_provider="openai",
+    temperature=0.7
+)
 
-# Simple chat
-response = model.invoke([HumanMessage(content="Hello, world!")])
+# Define system message to set the assistant's behavior
+system_message = SystemMessage(
+    content="You are a helpful AI assistant that provides accurate and concise information."
+)
+
+# User message
+user_message = HumanMessage(content="Explain LangChain in simple terms")
+
+# Get response
+response = model.invoke([system_message, user_message])
 print(response.content)`;
 
-  const mcpExample = `# MCP Server Example
+  const mcpExample = `# MCP (Model Control Protocol) Server Example
 from mcp import ServerSession
 import asyncio
+from typing import List, Dict, Any
+
+class DocumentService:
+    def __init__(self):
+        self.documents = {
+            "doc1.txt": {"content": "Document 1 content...", "metadata": {}},
+            "doc2.txt": {"content": "Document 2 content...", "metadata": {}}
+        }
+    
+    async def list_documents(self) -> List[str]:
+        """List all available documents"""
+        return list(self.documents.keys())
+    
+    async def get_document(self, doc_id: str) -> Dict[str, Any]:
+        """Retrieve a specific document by ID"""
+        return self.documents.get(doc_id, {"error": "Document not found"})
 
 async def main():
+    # Initialize services
+    doc_service = DocumentService()
+    
     # Create MCP server
-    server = ServerSession()
+    server = ServerSession(
+        name="DocumentService",
+        version="1.0.0",
+        description="Document management service"
+    )
     
-    # Register resources and tools
+    # Register resources and their handlers
     @server.resource("documents")
-    async def list_documents():
-        return ["doc1.txt", "doc2.txt"]
+    async def handle_documents() -> List[str]:
+        return await doc_service.list_documents()
     
-    await server.run()
+    @server.resource("document/{doc_id}")
+    async def get_document(doc_id: str) -> Dict[str, Any]:
+        return await doc_service.get_document(doc_id)
+    
+    # Start the server
+    print("Starting MCP server on port 8080...")
+    await server.run(port=8080)
 
 if __name__ == "__main__":
     asyncio.run(main())`;
