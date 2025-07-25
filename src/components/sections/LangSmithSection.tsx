@@ -1,8 +1,10 @@
 import { DocSection, FeatureCard, QuickStart } from '@/components/DocSection';
 import { CodeBlock } from '@/components/CodeBlock';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Settings, BarChart3, Eye, AlertTriangle, Zap, Target } from 'lucide-react';
+import { Settings, BarChart3, Eye, AlertTriangle, Zap, Target, Clock, CheckCircle, AlertCircle, GitBranch, Code2, Server, BookOpen, Terminal, BarChart, AlertOctagon } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 export const LangSmithSection = () => {
   const setupCode = `import os
@@ -189,25 +191,134 @@ print(f"Project stats: {stats}")`;
       externalLinks={[
         { title: "LangSmith Docs", url: "https://docs.smith.langchain.com/" },
         { title: "Dashboard", url: "https://smith.langchain.com/" },
-        { title: "Python SDK", url: "https://python.langchain.com/docs/langsmith/" }
+        { title: "Python SDK", url: "https://python.langchain.com/docs/langsmith/" },
+        { title: "API Reference", url: "https://api.python.langchain.com/en/latest/langsmith/langsmith.html" }
       ]}
     >
-      <div className="space-y-8">
-        {/* Key Features */}
-        <div className="space-y-4">
-          <h2 className="text-2xl font-semibold">Key Features</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <FeatureCard
-              icon={<Eye className="w-6 h-6" />}
-              title="Request Tracing"
-              description="Comprehensive tracing of LLM requests, chains, and agent interactions."
-              features={[
-                "End-to-end visibility",
-                "Performance metrics",
-                "Error tracking",
-                "Input/output logging"
-              ]}
-            />
+      <Tabs defaultValue="quickstart" className="w-full">
+        <TabsList className="grid w-full grid-cols-4 mb-6">
+          <TabsTrigger value="quickstart">Quick Start</TabsTrigger>
+          <TabsTrigger value="features">Features</TabsTrigger>
+          <TabsTrigger value="evaluation">Evaluation</TabsTrigger>
+          <TabsTrigger value="monitoring">Monitoring</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="quickstart" className="space-y-8">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Zap className="w-5 h-5 text-amber-500" />
+                Quick Start with LangSmith
+              </CardTitle>
+              <CardDescription>
+                Get started with LangSmith in minutes. Follow these steps to set up monitoring and evaluation for your LLM applications.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <h3 className="text-lg font-medium flex items-center gap-2">
+                  <Terminal className="w-5 h-5 text-blue-500" />
+                  1. Installation
+                </h3>
+                <p className="text-muted-foreground">Install the LangSmith Python package:</p>
+                <CodeBlock 
+                  language="bash" 
+                  code="pip install -U langsmith"
+                  showLineNumbers={false}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <h3 className="text-lg font-medium flex items-center gap-2">
+                  <Settings className="w-5 h-5 text-purple-500" />
+                  2. Configure Environment
+                </h3>
+                <p className="text-muted-foreground">Set up your API key and project name:</p>
+                <CodeBlock 
+                  language="bash" 
+                  code={"# Get your API key from https://smith.langchain.com/settings\n" +
+                  "export LANGCHAIN_TRACING_V2=true\n" +
+                  "export LANGCHAIN_API_KEY=your_api_key_here\n" +
+                  "export LANGCHAIN_PROJECT=your_project_name"}
+                  showLineNumbers={true}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <h3 className="text-lg font-medium flex items-center gap-2">
+                  <Code2 className="w-5 h-5 text-green-500" />
+                  3. Start Tracing
+                </h3>
+                <p className="text-muted-foreground">Add tracing to your LangChain application:</p>
+                <CodeBlock 
+                  language="python"
+                  code={"from langchain_openai import ChatOpenAI\n" +
+                  "from langchain.callbacks.tracers import LangChainTracer\n\n" +
+                  "# Initialize with tracing\n" +
+                  "llm = ChatOpenAI(\n" +
+                  "    model=\"gpt-4\",\n" +
+                  "    temperature=0.7,\n" +
+                  "    callbacks=[LangChainTracer()]  # This enables tracing\n" +
+                  ")\n\n" +
+                  "# Your existing code continues here\n" +
+                  "response = llm.invoke(\"Explain quantum computing in simple terms\")\n" +
+                  "print(response.content)"}
+                  showLineNumbers={true}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <h3 className="text-lg font-medium flex items-center gap-2">
+                  <BarChart className="w-5 h-5 text-cyan-500" />
+                  4. View Traces
+                </h3>
+                <p className="text-muted-foreground">
+                Visit the{' '}
+                <a href="https://smith.langchain.com" className="text-primary hover:underline">
+                  LangSmith Dashboard
+                </a>{' '}
+                to view your traces and monitor your application's performance.
+              </p>
+              </div>
+              
+              <div className="space-y-2">
+                <h3 className="text-lg font-medium flex items-center gap-2">
+                  <AlertOctagon className="w-5 h-5 text-rose-500" />
+                  Troubleshooting
+                </h3>
+                <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
+                  <li>Make sure your API key is correctly set in the environment variables</li>
+                  <li>Verify that <code className="bg-muted px-1 rounded">LANGCHAIN_TRACING_V2</code> is set to "true"</li>
+                  <li>Check that your project name doesn't contain spaces or special characters</li>
+                  <li>Ensure you have internet connectivity to reach the LangSmith service</li>
+                </ul>
+              </div>
+            </CardContent>
+            <CardFooter>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <BookOpen className="w-4 h-4" />
+                <span>For more details, check out the <a href="https://docs.smith.langchain.com/" className="text-primary hover:underline">LangSmith documentation</a>.</span>
+              </div>
+            </CardFooter>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="features" className="space-y-8">
+          {/* Key Features */}
+          <div className="space-y-4">
+            <h2 className="text-2xl font-semibold">Key Features</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <FeatureCard
+                icon={<Eye className="w-6 h-6" />}
+                title="Request Tracing"
+                description="Comprehensive tracing of LLM requests, chains, and agent interactions."
+                features={[
+                  "End-to-end visibility",
+                  "Performance metrics",
+                  "Error tracking",
+                  "Input/output logging"
+                ]}
+              />
             <FeatureCard
               icon={<BarChart3 className="w-6 h-6" />}
               title="Evaluation Framework"
@@ -263,11 +374,11 @@ print(f"Project stats: {stats}")`;
                 "Replay functionality"
               ]}
             />
+            </div>
           </div>
-        </div>
 
-        {/* Code Examples */}
-        <div className="space-y-4">
+          {/* Code Examples */}
+          <div className="space-y-4">
           <h2 className="text-2xl font-semibold">Implementation Guide</h2>
           <Tabs defaultValue="setup" className="w-full">
             <TabsList className="grid w-full grid-cols-3">
@@ -388,7 +499,10 @@ print(f"Project stats: {stats}")`;
             </div>
           </CardContent>
         </Card>
-      </div>
+      </TabsContent>
+    </Tabs>
     </DocSection>
   );
 };
+
+export default LangSmithSection;
