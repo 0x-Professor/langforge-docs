@@ -762,17 +762,100 @@ if __name__ == "__main__":
                 </div>
               </div>
               
-              <div className="space-y-2">
-                <h3 className="text-lg font-medium flex items-center gap-2">
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
                   <AlertOctagon className="w-5 h-5 text-rose-500" />
-                  Troubleshooting
+                  5. Troubleshooting & Common Issues
                 </h3>
-                <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
-                  <li>Make sure your API key is correctly set in the environment variables</li>
-                  <li>Verify that <code className="bg-muted px-1 rounded">LANGCHAIN_TRACING_V2</code> is set to "true"</li>
-                  <li>Check that your project name doesn't contain spaces or special characters</li>
-                  <li>Ensure you have internet connectivity to reach the LangSmith service</li>
-                </ul>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-4 bg-rose-50 dark:bg-rose-900/20 rounded-lg">
+                      <h4 className="font-medium flex items-center gap-2 text-rose-700 dark:text-rose-300">
+                        <AlertCircle className="w-4 h-4" />
+                        Common Issues
+                      </h4>
+                      <ul className="mt-2 space-y-2 text-sm text-rose-700/80 dark:text-rose-300/80">
+                        <li className="flex items-start gap-2">
+                          <span className="font-medium">No traces appearing?</span>
+                          <ul className="list-disc pl-5 space-y-1">
+                            <li>Verify <code className="bg-rose-100 dark:bg-rose-900/50 px-1 rounded">LANGCHAIN_TRACING_V2=true</code> is set</li>
+                            <li>Check your API key is correctly configured</li>
+                            <li>Ensure your code is using the correct callback handler</li>
+                          </ul>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="font-medium">Authentication errors?</span>
+                          <ul className="list-disc pl-5 space-y-1">
+                            <li>Verify your API key is valid and has proper permissions</li>
+                            <li>Check for any typos in the API key</li>
+                            <li>Ensure you're using the correct environment</li>
+                          </ul>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="font-medium">High latency?</span>
+                          <ul className="list-disc pl-5 space-y-1">
+                            <li>Check your network connection</li>
+                            <li>Verify the LangSmith service status</li>
+                            <li>Review your batch processing settings</li>
+                          </ul>
+                        </li>
+                      </ul>
+                    </div>
+                    
+                    <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                      <h4 className="font-medium flex items-center gap-2 text-blue-700 dark:text-blue-300">
+                        <Info className="w-4 h-4" />
+                        Debugging Tips
+                      </h4>
+                      <ul className="mt-2 space-y-2 text-sm text-blue-700/80 dark:text-blue-300/80 list-disc pl-5">
+                        <li>Enable verbose logging with <code className="bg-blue-100 dark:bg-blue-900/50 px-1 rounded">LANGCHAIN_VERBOSE=true</code></li>
+                        <li>Check browser's developer console for network errors</li>
+                        <li>Verify your project name doesn't contain special characters</li>
+                        <li>Test with a minimal example to isolate the issue</li>
+                      </ul>
+                    </div>
+                  </div>
+                  
+                  <div className="p-4 bg-muted/30 rounded-lg">
+                    <h4 className="font-medium flex items-center gap-2 mb-2">
+                      <Terminal className="w-4 h-4 text-blue-500" />
+                      Diagnostic Commands
+                    </h4>
+                    <div className="space-y-3">
+                      <div>
+                            <p className="text-sm text-muted-foreground mb-1">Test your LangSmith connection:</p>
+                            <CodeBlock
+                              language="bash"
+                              code="python -c 'from langsmith import Client; print(Client().list_projects())'"
+                              showLineNumbers={false}
+                            />
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground mb-1">Check environment variables:</p>
+                            <CodeBlock
+                              language="bash"
+                              code="env | grep LANGCHAIN"
+                              showLineNumbers={false}
+                            />
+                          </div>
+                    </div>
+                  </div>
+                  
+                  <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                    <h4 className="font-medium flex items-center gap-2 text-amber-700 dark:text-amber-300">
+                      <AlertTriangle className="w-4 h-4" />
+                      Need More Help?
+                    </h4>
+                    <p className="text-sm text-amber-700/80 dark:text-amber-300/80 mt-1">
+                      If you're still experiencing issues, please:
+                    </p>
+                    <ul className="text-sm text-amber-700/80 dark:text-amber-300/80 mt-1 list-disc pl-5 space-y-1">
+                      <li>Check the <a href="https://docs.smith.langchain.com/" className="underline">official documentation</a></li>
+                      <li>Search the <a href="https://github.com/langchain-ai/langsmith/discussions" className="underline">GitHub discussions</a></li>
+                      <li>Open an issue on <a href="https://github.com/langchain-ai/langsmith/issues" className="underline">GitHub</a> with details about your problem</li>
+                    </ul>
+                  </div>
+                </div>
               </div>
             </CardContent>
             <CardFooter>
