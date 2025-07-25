@@ -582,41 +582,184 @@ if __name__ == "__main__":
                 </div>
               </div>
               
-              <div className="space-y-2">
-                <h3 className="text-lg font-medium flex items-center gap-2">
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
                   <Code2 className="w-5 h-5 text-green-500" />
                   3. Start Tracing
                 </h3>
-                <p className="text-muted-foreground">Add tracing to your LangChain application:</p>
-                <CodeBlock 
-                  language="python"
-                  code={"from langchain_openai import ChatOpenAI\n" +
-                  "from langchain.callbacks.tracers import LangChainTracer\n\n" +
-                  "# Initialize with tracing\n" +
-                  "llm = ChatOpenAI(\n" +
-                  "    model=\"gpt-4\",\n" +
-                  "    temperature=0.7,\n" +
-                  "    callbacks=[LangChainTracer()]  # This enables tracing\n" +
-                  ")\n\n" +
-                  "# Your existing code continues here\n" +
-                  "response = llm.invoke(\"Explain quantum computing in simple terms\")\n" +
-                  "print(response.content)"}
-                  showLineNumbers={true}
-                />
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-muted-foreground mb-2">Add tracing to your application:</p>
+                    <Tabs defaultValue="python" className="w-full">
+                      <TabsList className="grid w-full grid-cols-2 max-w-xs mb-4">
+                        <TabsTrigger value="python">Python</TabsTrigger>
+                        <TabsTrigger value="typescript">TypeScript</TabsTrigger>
+                      </TabsList>
+                      
+                      <TabsContent value="python" className="space-y-4">
+                        <div>
+                          <h4 className="font-medium mb-2">Basic Example</h4>
+                          <CodeBlock 
+                            language="python"
+                            code={"from langchain_openai import ChatOpenAI\n" +
+                            "from langchain.callbacks.tracers import LangChainTracer\n\n" +
+                            "# Initialize with tracing\n" +
+                            "llm = ChatOpenAI(\n" +
+                            "    model=\"gpt-4\",\n" +
+                            "    temperature=0.7,\n" +
+                            "    callbacks=[LangChainTracer()]  # This enables tracing\n" +
+                            ")\n\n" +
+                            "# Your existing code continues here\n" +
+                            "response = llm.invoke(\"Explain quantum computing in simple terms\")\n" +
+                            "print(response.content)"}
+                            showLineNumbers={true}
+                          />
+                        </div>
+                        
+                        <div>
+                          <h4 className="font-medium mb-2">With LangChain Expression Language (LCEL)</h4>
+                          <CodeBlock
+                            language="python"
+                            code={"from langchain_core.prompts import ChatPromptTemplate\n" +
+                            "from langchain_openai import ChatOpenAI\n" +
+                            "from langchain.callbacks.tracers import LangChainTracer\n\n" +
+                            "# Create a chain with tracing\n" +
+                            "prompt = ChatPromptTemplate.from_template(\"Explain {topic} in simple terms\")\n" +
+                            "model = ChatOpenAI(temperature=0.7)\n" +
+                            "chain = prompt | model\n\n" +
+                            "# Invoke with tracing\n" +
+                            "response = chain.invoke(\n" +
+                            "    {\"topic\": \"quantum computing\"},\n" +
+                            "    {\"callbacks\": [LangChainTracer()]}\n" +
+                            ")\n" +
+                            "print(response.content)"}
+                            showLineNumbers={true}
+                          />
+                        </div>
+                      </TabsContent>
+                      
+                      <TabsContent value="typescript" className="space-y-4">
+                        <div>
+                          <h4 className="font-medium mb-2">Basic Example</h4>
+                          <CodeBlock
+                            language="typescript"
+                            code={"import { ChatOpenAI } from \"@langchain/openai\";\n" +
+                            "import { LangChainTracer } from \"@langchain/core/tracers/tracer_langchain\";\n\n" +
+                            "// Initialize with tracing\n" +
+                            "const model = new ChatOpenAI({\n" +
+                            "  modelName: \"gpt-4\",\n" +
+                            "  temperature: 0.7,\n" +
+                            "  callbacks: [new LangChainTracer()]  // This enables tracing\n" +
+                            "});\n\n" +
+                            "// Your existing code continues here\n" +
+                            "const response = await model.invoke(\"Explain quantum computing in simple terms\");\n" +
+                            "console.log(response.content);"}
+                            showLineNumbers={true}
+                          />
+                        </div>
+                        
+                        <div>
+                          <h4 className="font-medium mb-2">With LangChain Expression Language (LCEL)</h4>
+                          <CodeBlock
+                            language="typescript"
+                            code={"import { ChatPromptTemplate } from \"@langchain/core/prompts\";\n" +
+                            "import { ChatOpenAI } from \"@langchain/openai\";\n" +
+                            "import { LangChainTracer } from \"@langchain/core/tracers/tracer_langchain\";\n\n" +
+                            "// Create a chain with tracing\n" +
+                            "const prompt = ChatPromptTemplate.fromTemplate(\"Explain {topic} in simple terms\");\n" +
+                            "const model = new ChatOpenAI({ temperature: 0.7 });\n" +
+                            "const chain = prompt.pipe(model);\n\n" +
+                            "// Invoke with tracing\n" +
+                            "const response = await chain.invoke(\n" +
+                            "  { topic: \"quantum computing\" },\n" +
+                            "  { callbacks: [new LangChainTracer()] }\n" +
+                            ");\n" +
+                            "console.log(response.content);"}
+                            showLineNumbers={true}
+                          />
+                        </div>
+                      </TabsContent>
+                    </Tabs>
+                  </div>
+                  
+                  <div className="p-4 bg-muted/30 rounded-lg">
+                    <h4 className="font-medium flex items-center gap-2 mb-2">
+                      <Zap className="w-4 h-4 text-blue-500" />
+                      Best Practices for Tracing
+                    </h4>
+                    <ul className="text-sm space-y-1 text-muted-foreground list-disc pl-5">
+                      <li>Wrap your main application logic in a <code className="bg-muted px-1 rounded">with tracing_enabled()</code> context manager for automatic tracing of all operations</li>
+                      <li>Use unique and descriptive names for your chains and components to make traces easier to identify</li>
+                      <li>Add metadata to your traces for better filtering and organization in the LangSmith UI</li>
+                      <li>Consider using environment variables to control tracing in different environments (development/staging/production)</li>
+                      <li>For long-running applications, periodically flush traces to ensure they're sent to LangSmith</li>
+                    </ul>
+                  </div>
+                </div>
               </div>
               
-              <div className="space-y-2">
-                <h3 className="text-lg font-medium flex items-center gap-2">
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
                   <BarChart className="w-5 h-5 text-cyan-500" />
-                  4. View Traces
+                  4. View and Analyze Traces
                 </h3>
-                <p className="text-muted-foreground">
-                Visit the{' '}
-                <a href="https://smith.langchain.com" className="text-primary hover:underline">
-                  LangSmith Dashboard
-                </a>{' '}
-                to view your traces and monitor your application's performance.
-              </p>
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-muted-foreground mb-2">
+                      Once your application is running with tracing enabled, visit the{' '}
+                      <a href="https://smith.langchain.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                        LangSmith Dashboard
+                      </a>{' '}
+                      to view your traces.
+                    </p>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                      <div className="p-4 bg-muted/30 rounded-lg">
+                        <h4 className="font-medium flex items-center gap-2 mb-2">
+                          <Eye className="w-4 h-4 text-blue-500" />
+                          Key Dashboard Features
+                        </h4>
+                        <ul className="text-sm space-y-1 text-muted-foreground list-disc pl-5">
+                          <li><span className="font-medium">Traces:</span> View detailed execution traces of your LLM calls</li>
+                          <li><span className="font-medium">Latency:</span> Monitor performance metrics and identify bottlenecks</li>
+                          <li><span className="font-medium">Token Usage:</span> Track token consumption and costs</li>
+                          <li><span className="font-medium">Error Tracking:</span> Quickly identify and debug failed runs</li>
+                          <li><span className="font-medium">Filtering:</span> Filter traces by time, tags, metadata, and more</li>
+                        </ul>
+                      </div>
+                      
+                      <div className="p-4 bg-muted/30 rounded-lg">
+                        <h4 className="font-medium flex items-center gap-2 mb-2">
+                          <Zap className="w-4 h-4 text-yellow-500" />
+                          Tips for Effective Analysis
+                        </h4>
+                        <ul className="text-sm space-y-1 text-muted-foreground list-disc pl-5">
+                          <li>Use <code className="bg-muted px-1 rounded">metadata</code> to add custom tags and filters to your traces</li>
+                          <li>Compare different model versions using the comparison view</li>
+                          <li>Set up alerts for latency spikes or error rates</li>
+                          <li>Export traces for offline analysis or reporting</li>
+                          <li>Use the search functionality to find specific traces by content or metadata</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                    <h4 className="font-medium flex items-center gap-2 text-blue-700 dark:text-blue-300">
+                      <Info className="w-4 h-4" />
+                      Pro Tip: Debugging with Traces
+                    </h4>
+                    <p className="text-sm text-blue-700/80 dark:text-blue-300/80 mt-1">
+                      When debugging, look for traces with high latency or errors. Expand each step to see:
+                    </p>
+                    <ul className="text-sm text-blue-700/80 dark:text-blue-300/80 mt-1 list-disc pl-5 space-y-1">
+                      <li>Input and output of each LLM call</li>
+                      <li>Token usage and cost information</li>
+                      <li>Execution time for each component</li>
+                      <li>Any error messages or exceptions</li>
+                    </ul>
+                  </div>
+                </div>
               </div>
               
               <div className="space-y-2">
