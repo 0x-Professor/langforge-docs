@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 
 interface LoadingStateProps {
   isLoading: boolean;
-  children: React.ReactNode;
+  children?: React.ReactNode;
   fallback?: React.ReactNode;
   className?: string;
   text?: string;

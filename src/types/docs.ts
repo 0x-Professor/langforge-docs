@@ -20,6 +20,7 @@ export interface FeatureCardProps {
   icon: ReactNode;
   link?: string;
   className?: string;
+  features?: string[];
 }
 
 export interface QuickStartProps {
