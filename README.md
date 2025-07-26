@@ -143,8 +143,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🚀 Deployment
 
-This project is deployed using a static site deployment service. The current deployment can be accessed at: https://tuvmejvp.manus.space
-
 To deploy your own version, ensure you have built the project:
 
 ```bash
