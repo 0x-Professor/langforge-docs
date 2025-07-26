@@ -530,7 +530,9 @@ print(vector)`;
               "Custom storage"
             ]}
           />
-    >
+        </div>
+      </div>
+      
       <div className="space-y-8">
         {/* Core Concepts */}
         <div className="space-y-4">
@@ -1206,33 +1208,35 @@ print(vector)`;
         </div>
 
         {/* Best Practices */}
-        <Card className="shadow-card border-l-4 border-l-primary">
-          <CardHeader>
-            <CardTitle>Best Practices</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-3">
-                <h4 className="font-medium">Development</h4>
-                <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>• Use LCEL (LangChain Expression Language) for chains</li>
-                  <li>• Implement proper error handling and retries</li>
-                  <li>• Cache expensive operations like embeddings</li>
-                  <li>• Use async methods for better performance</li>
-                  <li>• Structure prompts with clear instructions</li>
-                  <li>• Use templates for consistent formatting</li>
-                </ul>
-              </div>
-              <div className="space-y-3">
-                <h4 className="font-medium">Production</h4>
-                <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>• Monitor token usage and costs</li>
-                  <li>• Implement rate limiting and quotas</li>
-                  <li>• Use LangSmith for tracing and debugging</li>
-                  <li>• Validate inputs and sanitize outputs</li>
-                  <li>• Set up proper logging and monitoring</li>
-                  <li>• Test with diverse data sets</li>
-                </ul>
+        <div className="space-y-6">
+          <Card className="shadow-card border-l-4 border-l-primary">
+            <CardHeader>
+              <CardTitle>Best Practices</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-3">
+                  <h4 className="font-medium">Development</h4>
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    <li>• Use LCEL (LangChain Expression Language) for chains</li>
+                    <li>• Implement proper error handling and retries</li>
+                    <li>• Cache expensive operations like embeddings</li>
+                    <li>• Use async methods for better performance</li>
+                    <li>• Structure prompts with clear instructions</li>
+                    <li>• Use templates for consistent formatting</li>
+                  </ul>
+                </div>
+                <div className="space-y-3">
+                  <h4 className="font-medium">Production</h4>
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    <li>• Monitor token usage and costs</li>
+                    <li>• Implement rate limiting and quotas</li>
+                    <li>• Use LangSmith for tracing and debugging</li>
+                    <li>• Validate inputs and sanitize outputs</li>
+                    <li>• Set up proper logging and monitoring</li>
+                    <li>• Test with diverse data sets</li>
+                  </ul>
+                </div>
               </div>
             </CardContent>
           </Card>
