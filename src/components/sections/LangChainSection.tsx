@@ -2,7 +2,8 @@ import { DocSection, FeatureCard, QuickStart } from '@/components/DocSection';
 import { CodeBlock } from '@/components/CodeBlock';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Code, Database, Zap, Settings, MessageSquare, FileText, Bot } from 'lucide-react';
+import { Code, Database, Zap, Settings, MessageSquare, FileText, Bot, Cpu } from 'lucide-react';
+import { Callout } from '@/components/docs/DocHeader';
 
 export const LangChainSection = () => {
   const basicChatCode = `from langchain.chat_models import init_chat_model
@@ -327,6 +328,39 @@ custom_result = custom_evaluator.evaluate_strings(
     reference="Neural networks are machine learning models consisting of interconnected nodes that process information similar to neurons in the brain."
 )`;
 
+  const chatModelExample = `from langchain.chat_models import init_chat_model
+
+# Initialize chat model
+model = init_chat_model("gpt-4", model_provider="openai")
+
+# Create messages
+messages = [
+    SystemMessage(content="You are a helpful AI assistant."),
+    HumanMessage(content="Explain quantum computing in simple terms.")
+]
+
+# Get response
+response = model.invoke(messages)
+print(response.content)`;
+
+  const llmExample = `from langchain_openai import ChatOpenAI
+
+# Initialize LLM
+model = ChatOpenAI(model="gpt-4")
+
+# Get response
+response = model.invoke("Explain machine learning in simple terms.")
+print(response)`;
+
+  const embeddingsExample = `from langchain_openai import OpenAIEmbeddings
+
+# Initialize embeddings
+embeddings = OpenAIEmbeddings()
+
+# Get embeddings
+vector = embeddings.encode("This is a test sentence.")
+print(vector)`;
+
   return (
     <DocSection
       id="langchain"
@@ -416,80 +450,170 @@ custom_result = custom_evaluator.evaluate_strings(
         {/* Interactive Examples */}
         <div className="space-y-4">
           <h2 className="text-2xl font-semibold">Comprehensive Code Examples</h2>
-          <Tabs defaultValue="basic" className="w-full">
-            <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8">
-              <TabsTrigger value="basic">Basic Chat</TabsTrigger>
+          <Tabs defaultValue="quickstart" className="w-full">
+            <TabsList className="grid w-full grid-cols-5">
+              <TabsTrigger value="quickstart">Quick Start</TabsTrigger>
+              <TabsTrigger value="models">Models</TabsTrigger>
+              <TabsTrigger value="chat">Chat</TabsTrigger>
               <TabsTrigger value="chains">Chains</TabsTrigger>
-              <TabsTrigger value="rag">RAG System</TabsTrigger>
-              <TabsTrigger value="integrations">Integrations</TabsTrigger>
-              <TabsTrigger value="agents">Agents</TabsTrigger>
-              <TabsTrigger value="memory">Memory</TabsTrigger>
-              <TabsTrigger value="streaming">Streaming</TabsTrigger>
-              <TabsTrigger value="custom">Custom</TabsTrigger>
+              <TabsTrigger value="rag">RAG</TabsTrigger>
             </TabsList>
-            
-            <TabsContent value="basic" className="space-y-4">
-              <CodeBlock
-                title="Basic Chat Model Usage"
-                language="python"
-                code={basicChatCode}
-              />
-            </TabsContent>
-            
-            <TabsContent value="chains" className="space-y-4">
-              <CodeBlock
-                title="Building Chains with LCEL"
-                language="python"
-                code={chainCode}
-              />
-            </TabsContent>
-            
-            <TabsContent value="rag" className="space-y-4">
-              <CodeBlock
-                title="Retrieval Augmented Generation"
-                language="python"
-                code={ragCode}
-              />
-            </TabsContent>
-            
-            <TabsContent value="integrations" className="space-y-4">
-              <CodeBlock
-                title="Provider Integrations"
-                language="python"
-                code={integrationsCode}
+
+            <TabsContent value="quickstart" className="space-y-6">
+              <QuickStart
+                title="Get Started with LangChain"
+                description="Start building with LangChain in minutes"
+                codeExample={basicChatCode}
+                steps={[
+                  'Chat with AI models',
+                  'Build complex chains',
+                  'Integrate with tools',
+                  'Add memory to applications'
+                ]}
               />
             </TabsContent>
 
-            <TabsContent value="agents" className="space-y-4">
-              <CodeBlock
-                title="Building Agents with Tools"
-                language="python"
-                code={agentCode}
-              />
+            <TabsContent value="models" className="space-y-6">
+              <div className="space-y-4">
+                <h2 className="text-2xl font-bold">Language Models</h2>
+                <p className="text-muted-foreground">
+                  LangChain provides a standard interface for working with various language models, including LLMs and Chat Models.
+                </p>
+
+                <Callout type="tip">
+                  <p>LangChain supports multiple model providers including OpenAI, Anthropic, Google, and more.</p>
+                </Callout>
+
+                <h3 className="text-xl font-semibold mt-6">Chat Models</h3>
+                <p>Chat models are a variation of language models that use a message-based interface.</p>
+                <CodeBlock
+                  code={chatModelExample}
+                  language="python"
+                  title="Using Chat Models"
+                />
+
+                <h3 className="text-xl font-semibold mt-6">LLMs</h3>
+                <p>Traditional language models that take a string as input and return a string.</p>
+                <CodeBlock
+                  code={llmExample}
+                  language="python"
+                  title="Using LLMs"
+                />
+
+                <h3 className="text-xl font-semibold mt-6">Embeddings</h3>
+                <p>Embeddings are used to convert text into vector representations for semantic search and other applications.</p>
+                <CodeBlock
+                  code={embeddingsExample}
+                  language="python"
+                  title="Working with Embeddings"
+                />
+
+                <div className="grid gap-4 md:grid-cols-2 mt-6">
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Supported Providers</CardTitle>
+                      <Cpu className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">25+</div>
+                      <p className="text-xs text-muted-foreground">model providers supported</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Model Types</CardTitle>
+                      <Zap className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">3+</div>
+                      <p className="text-xs text-muted-foreground">types of models (LLM, Chat, Embeddings)</p>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
             </TabsContent>
 
-            <TabsContent value="memory" className="space-y-4">
-              <CodeBlock
-                title="Conversation Memory Management"
-                language="python"
-                code={memoryCode}
-              />
-            </TabsContent>
+            <TabsContent value="chat" className="space-y-4">
+              <Tabs defaultValue="basic" className="w-full">
+                <TabsList className="grid w-full grid-cols-4">
+                  <TabsTrigger value="basic">Basic Chat</TabsTrigger>
+                  <TabsTrigger value="chains">Chains</TabsTrigger>
+                  <TabsTrigger value="rag">RAG</TabsTrigger>
+                  <TabsTrigger value="integrations">Integrations</TabsTrigger>
+                </TabsList>
 
-            <TabsContent value="streaming" className="space-y-4">
-              <CodeBlock
-                title="Streaming Responses & Async"
-                language="python"
-                code={streamingCode}
-              />
-            </TabsContent>
+                <TabsContent value="basic" className="space-y-4">
+                  <CodeBlock
+                    title="Basic Chat Model Usage"
+                    language="python"
+                    code={basicChatCode}
+                  />
+                </TabsContent>
+                
+                <TabsContent value="chains" className="space-y-4">
+                  <CodeBlock
+                    title="Building Chains with LCEL"
+                    language="python"
+                    code={chainCode}
+                  />
+                </TabsContent>
+                
+                <TabsContent value="rag" className="space-y-4">
+                  <CodeBlock
+                    title="Retrieval Augmented Generation"
+                    language="python"
+                    code={ragCode}
+                  />
+                </TabsContent>
+                
+                <TabsContent value="integrations" className="space-y-4">
+                  <CodeBlock
+                    title="Provider Integrations"
+                    language="python"
+                    code={integrationsCode}
+                  />
+                </TabsContent>
+              </Tabs>
 
-            <TabsContent value="custom" className="space-y-4">
-              <CodeBlock
-                title="Custom Chains & Parallel Processing"
-                language="python"
-                code={customChainCode}
-              />
+              <Tabs defaultValue="agents" className="w-full mt-6">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="agents">Agents</TabsTrigger>
+                  <TabsTrigger value="memory">Memory</TabsTrigger>
+                  <TabsTrigger value="streaming">Streaming</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="agents" className="space-y-4">
+                  <CodeBlock
+                    title="Building Agents with Tools"
+                    language="python"
+                    code={agentCode}
+                  />
+                </TabsContent>
+
+                <TabsContent value="memory" className="space-y-4">
+                  <CodeBlock
+                    title="Conversation Memory Management"
+                    language="python"
+                    code={memoryCode}
+                  />
+                </TabsContent>
+
+                <TabsContent value="streaming" className="space-y-4">
+                  <CodeBlock
+                    title="Streaming Responses & Async"
+                    language="python"
+                    code={streamingCode}
+                  />
+                </TabsContent>
+              </Tabs>
+
+              <div className="mt-6">
+                <CodeBlock
+                  title="Custom Chains & Parallel Processing"
+                  language="python"
+                  code={customChainCode}
+                />
+              </div>
             </TabsContent>
           </Tabs>
         </div>
