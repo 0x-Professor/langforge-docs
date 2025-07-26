@@ -1,4 +1,4 @@
-import { NavItem } from './types';
+import { NavItem } from '@/types/docs';
 import { cn } from '@/lib/utils';
 import { useLocation } from 'react-router-dom';
 import { ChevronDown, ChevronRight } from 'lucide-react';

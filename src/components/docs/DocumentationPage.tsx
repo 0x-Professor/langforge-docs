@@ -166,7 +166,9 @@ export function DocumentationPage({
       )}
       
       {contentPath ? (
-        <MarkdownContent content={markdown || ''} />
+        <div className={className}>
+          <MarkdownContent>{markdown || ''}</MarkdownContent>
+        </div>
       ) : (
         children
       )}

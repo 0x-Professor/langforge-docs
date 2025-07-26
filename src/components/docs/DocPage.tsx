@@ -12,6 +12,7 @@ export interface DocPageProps {
   fallback?: React.ReactNode;
   showToc?: boolean;
   toc?: Array<{ id: string; title: string; level: number }>;
+  className?: string;
 }
 
 export function DocPage({

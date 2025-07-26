@@ -1,7 +1,5 @@
 import { ReactNode } from 'react';
-import { SidebarNav } from './SidebarNav';
-import { DocHeader } from './DocHeader';
-import { TableOfContents } from './TableOfContents';
+import { SidebarNav, DocHeader, TableOfContents } from './';
 
 interface DocLayoutProps {
   children: ReactNode;

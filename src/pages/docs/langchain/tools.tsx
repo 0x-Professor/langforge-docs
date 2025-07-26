@@ -218,10 +218,24 @@ class StockInfoTool(BaseTool):
                 time.sleep(1)  # Exponential backoff would be better in production
     
     def _parse_response(self, data: dict) -> str:
-        """Parse and format the API response"""
+        """Parse and format the API response
+        
+        Args:
+            data: Dictionary containing stock information with keys:
+                - symbol: Stock symbol
+                - price: Current stock price
+                - change: Price change percentage
+                
+        Returns:
+            Formatted string with stock information
+        """
         try:
+            # Ensure data is a dictionary
+            if not isinstance(data, dict):
+                return "Error: Invalid response format"
+                
             return f"""
-            Stock: {data.get('symbol')}
+            Stock: {data.get('symbol', 'N/A')}
             Price: ${data.get('price', 'N/A')}
             Change: {data.get('change', 'N/A')}%
             """
