@@ -7,7 +7,7 @@ import { lazyLoad } from '@/lib/docs/lazyLoad';
 
 // Lazy load markdown content
 const MarkdownContent = lazyLoad(
-  () => import('@/components/ui/MarkdownContent'),
+  () => import('./components/ui/MarkdownContent'),
   {
     loadingFallback: <div className="min-h-[50vh]" />,
   }

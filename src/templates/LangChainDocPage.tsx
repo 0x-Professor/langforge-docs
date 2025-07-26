@@ -1,12 +1,15 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { DocumentationPage } from '@/components/docs/DocumentationPage';
 import { FeatureCard } from '@/components/DocSection';
-import { CodeBlock } from '@/components/ui/code-block';
+import { CodeBlock } from '@/components/ui/CodeBlock';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Callout } from '@/components/docs/DocHeader';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ExternalLink, Github } from 'lucide-react';
+import { ExternalLink, Github, Code, BookOpen, Zap, Cpu, MessageSquare, Database, Settings } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
+import { getActiveNavItem, getBreadcrumbs } from '@/lib/docs/navigation';
+import { DocLayout } from '@/components/docs/DocLayout';
 
 interface LangChainDocPageProps {
   /**
@@ -85,7 +88,7 @@ interface LangChainDocPageProps {
  * A template for LangChain documentation pages
  * Provides consistent layout and styling for all documentation pages
  */
-export function LangChainDocPage({
+export const LangChainDocPage = ({
   title,
   description,
   contentPath,
@@ -96,30 +99,76 @@ export function LangChainDocPage({
   resources = [],
   apiReference,
   showToc = true,
-}: LangChainDocPageProps) {
+}: LangChainDocPageProps) => {
+  const location = useLocation();
+  
+  // Generate table of contents from the content
+  const toc = useMemo(() => {
+    // This would be populated from markdown headings or passed as a prop
+    return [];
+  }, []);
+  
+  // Get active navigation item for highlighting
+  const activeNavItem = useMemo(() => {
+    return getActiveNavItem(location.pathname);
+  }, [location.pathname]);
+  
+  // Get breadcrumbs for the current page
+  const breadcrumbs = useMemo(() => {
+    return getBreadcrumbs(location.pathname);
+  }, [location.pathname]);
   const fullContentPath = contentPath ? `langchain/${contentPath}` : undefined;
   
+  // Default features if none provided
+  const defaultFeatures = features.length > 0 ? features : [
+    {
+      title: 'Comprehensive Documentation',
+      description: 'Detailed guides and API references for all LangChain components',
+      icon: <BookOpen className="h-6 w-6 text-blue-500" />,
+    },
+    {
+      title: 'Code Examples',
+      description: 'Ready-to-use code snippets for common use cases',
+      icon: <Code className="h-6 w-6 text-green-500" />,
+    },
+    {
+      title: 'Best Practices',
+      description: 'Learn the recommended patterns and approaches',
+      icon: <Zap className="h-6 w-6 text-yellow-500" />,
+    },
+  ];
+
   return (
-    <DocumentationPage
-      title={title}
-      description={description}
-      contentPath={fullContentPath}
-      showToc={showToc}
-    >
+    <DocLayout title={title} description={description} toc={toc}>
       {/* Features Grid */}
-      {features.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 my-8">
-          {features.map((feature, index) => (
+      {defaultFeatures.length > 0 && (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-12">
+          {defaultFeatures.map((feature, index) => (
             <FeatureCard
               key={index}
               title={feature.title}
               description={feature.description}
               icon={feature.icon}
               link={feature.link}
+              className="h-full"
             />
           ))}
         </div>
       )}
+
+      {/* Main Content */}
+      <div className="prose dark:prose-invert max-w-none">
+        {contentPath ? (
+          <DocumentationPage
+            title={title}
+            description={description}
+            contentPath={contentPath}
+            showToc={showToc}
+          />
+        ) : (
+          children
+        )}
+      </div>
       
       {/* Installation Instructions */}
       {installation && (
@@ -174,9 +223,6 @@ export function LangChainDocPage({
         </div>
       )}
       
-      {/* Main Content */}
-      {children}
-      
       {/* Code Examples */}
       {codeExamples.length > 0 && (
         <div className="my-8">
@@ -223,11 +269,12 @@ export function LangChainDocPage({
                 rel="noopener noreferrer"
                 className="p-4 border rounded-lg hover:bg-muted/50 transition-colors"
               >
-                <div className="flex items-center gap-2">
-                  <BookOpen className="w-5 h-5 text-primary" />
-                  <span className="font-medium">API Reference</span>
-                  <ExternalLink className="w-4 h-4 ml-auto text-muted-foreground" />
+                <div className="flex items-center space-x-2">
+                  <Code className="h-4 w-4" />
+                  <span>Code</span>
                 </div>
+                <span className="font-medium">API Reference</span>
+                <ExternalLink className="w-4 h-4 ml-auto text-muted-foreground" />
               </a>
             )}
             
@@ -257,9 +304,9 @@ export function LangChainDocPage({
           </div>
         </div>
       )}
-    </DocumentationPage>
+    </DocLayout>
   );
-}
+};
 
 // Helper component for version badges
 export function VersionBadge({ version }: { version: string }) {

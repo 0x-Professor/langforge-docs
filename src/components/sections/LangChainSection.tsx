@@ -1,11 +1,83 @@
-import { DocSection, FeatureCard, QuickStart } from '@/components/DocSection';
+import { FeatureCard, QuickStart } from '@/components/DocSection';
 import { CodeBlock } from '@/components/CodeBlock';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Code, Database, Zap, Settings, MessageSquare, FileText, Bot, Cpu } from 'lucide-react';
+import { Code, Database, Zap, Settings, MessageSquare, FileText, Bot, Cpu, Layers, CheckCircle2 } from 'lucide-react';
 import { Callout } from '@/components/docs/DocHeader';
+import { VersionBadge, BetaBadge, ApiReferenceLink } from '@/templates/LangChainDocPage';
+import { DocLayout } from '@/components/docs/DocLayout';
 
-export const LangChainSection = () => {
+interface LangChainSectionProps {
+  // Add any props if needed
+}
+
+export const LangChainSection: React.FC<LangChainSectionProps> = () => {
+  // Define the features for the models section
+  const modelFeatures = [
+    {
+      title: 'LLMs & Chat Models',
+      description: 'Support for various LLM providers with consistent interfaces',
+      icon: <MessageSquare className="h-6 w-6 text-blue-500" />,
+    },
+    {
+      title: 'Embeddings',
+      description: 'Generate embeddings for text with different embedding models',
+      icon: <Layers className="h-6 w-6 text-green-500" />,
+    },
+    {
+      title: 'Token Usage',
+      description: 'Track token usage and costs across different models',
+      icon: <CheckCircle2 className="h-6 w-6 text-purple-500" />,
+    },
+  ];
+
+  // Define the code examples for the models section
+  const modelCodeExamples = [
+    {
+      title: 'Basic LLM Usage',
+      description: 'Initialize and use a language model',
+      code: `from langchain.llms import OpenAI
+from langchain.callbacks import get_openai_callback
+
+# Initialize LLM
+llm = OpenAI(
+    model_name="gpt-3.5-turbo-instruct",
+    temperature=0.7,
+    max_tokens=1000,
+    streaming=True
+)
+
+# Generate text with token usage tracking
+with get_openai_callback() as cb:
+    response = llm.invoke("Explain quantum computing in simple terms.")
+    print(f"Response: {response}")
+    print(f"Tokens used: {cb.total_tokens}")
+    print(f"Prompt tokens: {cb.prompt_tokens}")
+    print(f"Completion tokens: {cb.completion_tokens}")
+    print(f"Total cost (USD): ${cb.total_cost}")`,
+      language: 'python',
+    },
+    {
+      title: 'Chat Models',
+      description: 'Use chat models with message history',
+      code: `from langchain.chat_models import ChatOpenAI
+from langchain_core.messages import HumanMessage, SystemMessage
+
+# Initialize chat model
+chat = ChatOpenAI(model_name="gpt-4", temperature=0.7)
+
+# Create messages with system prompt
+messages = [
+    SystemMessage(content="You are a helpful AI assistant."),
+    HumanMessage(content="Explain quantum computing in simple terms.")
+]
+
+# Get response
+response = chat.invoke(messages)
+print(response.content)`,
+      language: 'python',
+    },
+  ];
   const basicChatCode = `from langchain.chat_models import init_chat_model
 from langchain_core.messages import HumanMessage, SystemMessage
 
@@ -362,16 +434,102 @@ vector = embeddings.encode("This is a test sentence.")
 print(vector)`;
 
   return (
-    <DocSection
-      id="langchain"
-      title="LangChain Framework"
-      description="Build powerful LLM applications with modular components, chains, and integrations."
-      badges={["Core Framework", "Production Ready"]}
-      externalLinks={[
-        { title: "LangChain Docs", url: "https://python.langchain.com/docs/introduction/" },
-        { title: "API Reference", url: "https://python.langchain.com/api_reference/" },
-        { title: "Tutorials", url: "https://python.langchain.com/docs/tutorials/" }
-      ]}
+    <div className="container mx-auto py-8 px-4">
+      <div className="space-y-8">
+        <div className="text-center mb-12">
+          <h1 className="text-4xl font-bold mb-4">LangChain Framework</h1>
+          <p className="text-xl text-muted-foreground">
+            Build powerful LLM applications with modular components, chains, and integrations.
+          </p>
+          <div className="flex justify-center gap-4 mt-4">
+            <a 
+              href="https://python.langchain.com/docs/introduction/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              Documentation
+            </a>
+            <a 
+              href="https://python.langchain.com/api_reference/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              API Reference
+            </a>
+          </div>
+        </div>
+      {/* Core Concepts */}
+      <div className="space-y-4">
+        <h2 className="text-2xl font-semibold">Core Concepts</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <FeatureCard
+            icon={<MessageSquare className="w-6 h-6" />}
+            title="Chat Models"
+            description="Unified interface for different LLM providers with consistent APIs."
+            features={[
+              "Multi-provider support",
+              "Streaming responses",
+              "Token usage tracking",
+              "Custom configurations"
+            ]}
+          />
+          <FeatureCard
+            icon={<FileText className="w-6 h-6" />}
+            title="Prompts & Templates"
+            description="Dynamic prompt creation with variables and conditional logic."
+            features={[
+              "Template variables",
+              "Few-shot examples",
+              "Conditional prompts",
+              "Prompt optimization"
+            ]}
+          />
+          <FeatureCard
+            icon={<Zap className="w-6 h-6" />}
+            title="Chains & Runnables"
+            description="Compose multiple components into powerful processing pipelines."
+            features={[
+              "Sequential processing",
+              "Parallel execution",
+              "Error handling",
+              "Async support"
+            ]}
+          />
+          <FeatureCard
+            icon={<Database className="w-6 h-6" />}
+            title="Vector Stores"
+            description="Store and retrieve embeddings for semantic search and RAG."
+            features={[
+              "Multiple backends",
+              "Similarity search",
+              "Metadata filtering",
+              "Hybrid search"
+            ]}
+          />
+          <FeatureCard
+            icon={<Code className="w-6 h-6" />}
+            title="Output Parsers"
+            description="Parse and validate LLM outputs into structured formats."
+            features={[
+              "JSON parsing",
+              "Schema validation",
+              "Custom formats",
+              "Error recovery"
+            ]}
+          />
+          <FeatureCard
+            icon={<Settings className="w-6 h-6" />}
+            title="Memory"
+            description="Persist conversation context and maintain state across interactions."
+            features={[
+              "Conversation memory",
+              "Entity extraction",
+              "Summary memory",
+              "Custom storage"
+            ]}
+          />
     >
       <div className="space-y-8">
         {/* Core Concepts */}
@@ -1076,10 +1234,161 @@ print(vector)`;
                   <li>• Test with diverse data sets</li>
                 </ul>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-card">
+            <CardHeader>
+              <CardTitle>Code Analysis & Generation</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Analyze codebases and generate code with AI assistance.
+              </p>
+              <div className="space-y-2">
+                <h5 className="font-medium">Applications:</h5>
+                <ul className="text-sm text-muted-foreground space-y-1">
+                  <li>• Code review and bug detection</li>
+                  <li>• Documentation generation</li>
+                  <li>• Code refactoring suggestions</li>
+                  <li>• Test case generation</li>
+                  <li>• API documentation from code</li>
+                </ul>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-card">
+            <CardHeader>
+              <CardTitle>Content Creation & SEO</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Automate content creation with AI-powered writing assistants.
+              </p>
+              <div className="space-y-2">
+                <h5 className="font-medium">Features:</h5>
+                <ul className="text-sm text-muted-foreground space-y-1">
+                  <li>• Blog post and article generation</li>
+                  <li>• SEO optimization suggestions</li>
+                  <li>• Social media content creation</li>
+                  <li>• Content personalization</li>
+                  <li>• Multi-language support</li>
+                </ul>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
-    </DocSection>
+
+      {/* Troubleshooting Guide */}
+      <div className="space-y-4">
+        <h2 className="text-2xl font-semibold">Troubleshooting Guide</h2>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card className="shadow-card">
+            <CardHeader>
+              <CardTitle>Common Issues</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="space-y-3">
+                <div>
+                  <h5 className="font-medium text-destructive">Rate Limit Errors</h5>
+                  <p className="text-sm text-muted-foreground">
+                    Implement exponential backoff and request queuing.
+                  </p>
+                </div>
+                <div>
+                  <h5 className="font-medium text-destructive">Memory Issues</h5>
+                  <p className="text-sm text-muted-foreground">
+                    Use conversation summarization for long chats.
+                  </p>
+                </div>
+                <div>
+                  <h5 className="font-medium text-destructive">Slow Responses</h5>
+                  <p className="text-sm text-muted-foreground">
+                    Enable caching and optimize chunk sizes.
+                  </p>
+                </div>
+                <div>
+                  <h5 className="font-medium text-destructive">Token Limits</h5>
+                  <p className="text-sm text-muted-foreground">
+                    Implement token counting and context management.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-card">
+            <CardHeader>
+              <CardTitle>Performance Tips</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="space-y-3">
+                <div>
+                  <h5 className="font-medium text-success">Async Processing</h5>
+                  <p className="text-sm text-muted-foreground">
+                    Use async methods for better concurrency.
+                  </p>
+                </div>
+                <div>
+                  <h5 className="font-medium text-success">Batch Operations</h5>
+                  <p className="text-sm text-muted-foreground">
+                    Process multiple items together when possible.
+                  </p>
+                </div>
+                <div>
+                  <h5 className="font-medium text-success">Smart Caching</h5>
+                  <p className="text-sm text-muted-foreground">
+                    Cache embeddings and expensive computations.
+                  </p>
+                </div>
+                <div>
+                  <h5 className="font-medium text-success">Model Selection</h5>
+                  <p className="text-sm text-muted-foreground">
+                    Choose appropriate models for your use case.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Best Practices */}
+      <Card className="shadow-card border-l-4 border-l-primary">
+        <CardHeader>
+          <CardTitle>Best Practices</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-3">
+              <h4 className="font-medium">Development</h4>
+              <ul className="text-sm text-muted-foreground space-y-1">
+                <li>• Use LCEL (LangChain Expression Language) for chains</li>
+                <li>• Implement proper error handling and retries</li>
+                <li>• Cache expensive operations like embeddings</li>
+                <li>• Use async methods for better performance</li>
+                <li>• Structure prompts with clear instructions</li>
+                <li>• Use templates for consistent formatting</li>
+              </ul>
+            </div>
+            <div className="space-y-3">
+              <h4 className="font-medium">Production</h4>
+              <ul className="text-sm text-muted-foreground space-y-1">
+                <li>• Monitor token usage and costs</li>
+                <li>• Implement rate limiting and quotas</li>
+                <li>• Use LangSmith for tracing and debugging</li>
+                <li>• Validate inputs and sanitize outputs</li>
+                <li>• Set up proper logging and monitoring</li>
+                <li>• Test with diverse data sets</li>
+              </ul>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
+
+export default LangChainSection;
