@@ -4,39 +4,17 @@
 
 Chains in LangChain are a way to combine multiple components together to create more complex applications. They allow you to create sequences of operations that can be executed in order, with the output of one operation becoming the input to the next.
 
-Chains are the building blocks of LangChain applications. They enable you to create complex workflows by combining simpler components in a modular way.
+> **Note:** The modern approach in LangChain uses LCEL (LangChain Expression Language) for better composability, streaming support, and async handling.
 
-## LLM Chain
+## Modern Chain Creation with LCEL
 
-The most basic type of chain is the LLMChain, which combines a language model with a prompt template. It takes an input, formats it using the prompt template, passes it to the language model, and returns the model's output.
+LangChain Expression Language (LCEL) is the recommended way to create chains in modern LangChain applications.
 
-```python
-from langchain.chains import LLMChain
-from langchain.prompts import PromptTemplate
-from langchain_openai import OpenAI
-
-# Define the prompt template
-prompt = PromptTemplate(
-    input_variables=["product"],
-    template="What is a good name for a company that makes {product}?",
-)
-
-# Initialize the LLM
-llm = OpenAI(temperature=0.9)
-
-# Create the chain
-chain = LLMChain(llm=llm, prompt=prompt)
-
-# Run the chain
-result = chain.run("colorful socks")
-print(result)
-```
-
-### Modern Approach with LCEL
+### Basic Chain with LCEL
 
 ```python
 from langchain_core.prompts import PromptTemplate
-from langchain_openai import OpenAI
+from langchain_openai import ChatOpenAI
 from langchain_core.output_parsers import StrOutputParser
 
 # Define the prompt template
@@ -45,9 +23,9 @@ prompt = PromptTemplate.from_template(
 )
 
 # Initialize the LLM
-llm = OpenAI(temperature=0.9)
+llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.9)
 
-# Create the chain using LCEL (LangChain Expression Language)
+# Create the chain using LCEL
 chain = prompt | llm | StrOutputParser()
 
 # Run the chain
@@ -55,61 +33,16 @@ result = chain.invoke({"product": "colorful socks"})
 print(result)
 ```
 
-## Sequential Chains
-
-Sequential chains allow you to connect multiple chains together, where the output of one chain becomes the input to the next. This is useful for breaking down complex tasks into smaller, more manageable steps.
-
-```python
-from langchain.chains import LLMChain, SimpleSequentialChain
-from langchain.prompts import PromptTemplate
-from langchain_openai import OpenAI
-
-# First chain: Generate company name
-name_template = """You are a naming consultant for new companies.
-What is a good name for a {company_type} company?
-Company name:"""
-
-name_prompt = PromptTemplate(
-    input_variables=["company_type"],
-    template=name_template,
-)
-
-# Second chain: Generate company slogan
-slogan_template = """You are a marketing expert.
-Create a catchy slogan for the following company:
-{company_name}
-Slogan:"""
-
-slogan_prompt = PromptTemplate(
-    input_variables=["company_name"],
-    template=slogan_template,
-)
-
-# Initialize the LLM
-llm = OpenAI(temperature=0.9)
-
-# Create the chains
-name_chain = LLMChain(llm=llm, prompt=name_prompt)
-slogan_chain = LLMChain(llm=llm, prompt=slogan_prompt)
-
-# Combine the chains
-overall_chain = SimpleSequentialChain(
-    chains=[name_chain, slogan_chain],
-    verbose=True
-)
-
-# Run the chain
-result = overall_chain.run("eco-friendly clothing")
-print(result)
-```
-
-### Modern Sequential Chain with LCEL
+### Sequential Chains with LCEL
 
 ```python
 from langchain_core.prompts import PromptTemplate
-from langchain_openai import OpenAI
+from langchain_openai import ChatOpenAI
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnablePassthrough
+
+# Initialize components
+llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.9)
+output_parser = StrOutputParser()
 
 # Define prompts
 name_prompt = PromptTemplate.from_template(
@@ -120,13 +53,11 @@ slogan_prompt = PromptTemplate.from_template(
     "Create a catchy slogan for this company: {company_name}"
 )
 
-# Initialize LLM
-llm = OpenAI(temperature=0.9)
-output_parser = StrOutputParser()
-
-# Create sequential chain using LCEL
+# Create sequential chain
 name_chain = name_prompt | llm | output_parser
-slogan_chain = (
+
+# Chain the output of the first chain into the second
+full_chain = (
     {"company_name": name_chain} 
     | slogan_prompt 
     | llm 
@@ -134,66 +65,54 @@ slogan_chain = (
 )
 
 # Run the chain
-result = slogan_chain.invoke({"company_type": "eco-friendly clothing"})
+result = full_chain.invoke({"company_type": "eco-friendly clothing"})
 print(result)
 ```
 
-## Router Chains
-
-Router chains allow you to dynamically select the next chain to use based on the input. This is useful for creating applications that need to handle different types of inputs in different ways.
+### Parallel Chains
 
 ```python
-from langchain.chains.router import MultiPromptChain
-from langchain.chains.llm import LLMChain
-from langchain.prompts import PromptTemplate
-from langchain_openai import OpenAI
+from langchain_core.prompts import PromptTemplate
+from langchain_openai import ChatOpenAI
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.runnables import RunnableParallel
 
-# Define the prompt templates
-physics_template = """You are a very smart physics professor. \
-You are great at answering questions about physics in a concise and easy to understand manner. \
-When you don't know the answer to a question you admit that you don't know.
+llm = ChatOpenAI(model="gpt-3.5-turbo")
 
-Here is a question:
-{input}"""
-
-math_template = """You are a very good mathematician. \
-You are great at answering math questions. \
-You are so good because you are able to break down hard problems into their component parts, \
-answer the component parts, and then put them together to answer the broader question.
-
-Here is a question:
-{input}"""
-
-# Create the prompt templates
-prompt_infos = [
-    {
-        "name": "physics",
-        "description": "Good for answering questions about physics",
-        "prompt_template": physics_template,
-    },
-    {
-        "name": "math",
-        "description": "Good for answering math questions",
-        "prompt_template": math_template,
-    },
-]
-
-# Initialize the LLM
-llm = OpenAI(temperature=0)
-
-# Create the router chain
-chain = MultiPromptChain.from_prompts(
-    llm=llm,
-    prompt_infos=prompt_infos,
-    verbose=True
+# Create parallel chains
+name_chain = (
+    PromptTemplate.from_template("Generate a company name for: {product}")
+    | llm
+    | StrOutputParser()
 )
 
-# Run the chain
-result = chain.run("What is the speed of light?")
+description_chain = (
+    PromptTemplate.from_template("Write a brief description for a company that makes: {product}")
+    | llm
+    | StrOutputParser()
+)
+
+tagline_chain = (
+    PromptTemplate.from_template("Create a tagline for a company that makes: {product}")
+    | llm
+    | StrOutputParser()
+)
+
+# Run chains in parallel
+parallel_chain = RunnableParallel(
+    name=name_chain,
+    description=description_chain,
+    tagline=tagline_chain
+)
+
+result = parallel_chain.invoke({"product": "sustainable water bottles"})
 print(result)
+# Output: {'name': '...', 'description': '...', 'tagline': '...'}
 ```
 
-### Modern Router with LCEL
+## Conditional Chains
+
+Create chains that route to different paths based on input:
 
 ```python
 from langchain_core.prompts import PromptTemplate
@@ -226,229 +145,418 @@ general_chain = (
     | StrOutputParser()
 )
 
-# Create a router that selects the appropriate chain
-def route_question(info):
-    question = info["question"].lower()
-    if any(word in question for word in ["physics", "force", "energy", "quantum"]):
-        return physics_chain
-    elif any(word in question for word in ["math", "calculate", "equation", "solve"]):
-        return math_chain
-    else:
-        return general_chain
+# Create conditional routing
+def is_physics_question(x):
+    return any(word in x["question"].lower() for word in ["physics", "force", "energy", "quantum", "particle"])
+
+def is_math_question(x):
+    return any(word in x["question"].lower() for word in ["calculate", "equation", "solve", "math", "algebra"])
 
 # Create the routing chain
 router_chain = RunnableBranch(
-    (lambda x: "physics" in x["question"].lower(), physics_chain),
-    (lambda x: "math" in x["question"].lower(), math_chain),
+    (is_physics_question, physics_chain),
+    (is_math_question, math_chain),
     general_chain,  # default
 )
 
-# Run the chain
-result = router_chain.invoke({"question": "What is the speed of light?"})
-print(result)
+# Test the router
+physics_result = router_chain.invoke({"question": "What is the speed of light?"})
+math_result = router_chain.invoke({"question": "What is 25 * 4?"})
+general_result = router_chain.invoke({"question": "What is the capital of France?"})
+
+print(f"Physics: {physics_result}")
+print(f"Math: {math_result}")
+print(f"General: {general_result}")
 ```
 
-## Custom Chains
+## Transform Chains
 
-For more complex use cases, you can create custom chains by subclassing the base Chain class or using LCEL for more modern implementations.
-
-### Traditional Custom Chain
+Apply transformations to data as it flows through the chain:
 
 ```python
-from typing import Dict, List, Any
-from langchain.chains.base import Chain
-from langchain_openai import OpenAI
-from langchain.prompts import PromptTemplate
-
-class CustomChain(Chain):
-    """A custom chain that generates a company name and slogan."""
-    
-    prompt: PromptTemplate
-    llm: OpenAI
-    
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.prompt = PromptTemplate(
-            input_variables=["product"],
-            template="""You are a creative marketing expert.
-Generate a company name and a catchy slogan for a company that makes {product}.
-
-Format the output as:
-Name: [company name]
-Slogan: [company slogan]""",
-        )
-        self.llm = OpenAI(temperature=0.9)
-    
-    @property
-    def input_keys(self) -> List[str]:
-        return ["product"]
-    
-    @property
-    def output_keys(self) -> List[str]:
-        return ["company_name", "slogan"]
-    
-    def _call(self, inputs: Dict[str, Any]) -> Dict[str, str]:
-        try:
-            # Generate the response
-            prompt_text = self.prompt.format(product=inputs["product"])
-            response = self.llm.invoke(prompt_text)
-            
-            # Parse the response
-            lines = response.strip().split("\n")
-            company_name = ""
-            slogan = ""
-            
-            for line in lines:
-                if line.startswith("Name:"):
-                    company_name = line.replace("Name:", "").strip()
-                elif line.startswith("Slogan:"):
-                    slogan = line.replace("Slogan:", "").strip()
-            
-            return {"company_name": company_name, "slogan": slogan}
-        
-        except Exception as e:
-            return {"company_name": "Error", "slogan": f"Failed to generate: {str(e)}"}
-
-# Use the custom chain
-custom_chain = CustomChain()
-result = custom_chain.invoke({"product": "sustainable clothing"})
-print(result)
-```
-
-### Modern Custom Chain with LCEL
-
-```python
-from langchain_core.prompts import PromptTemplate
-from langchain_openai import OpenAI
-from langchain_core.output_parsers import BaseOutputParser
 from langchain_core.runnables import RunnableLambda
-from typing import Dict
+from langchain_core.prompts import PromptTemplate
+from langchain_openai import ChatOpenAI
 
-class CompanyOutputParser(BaseOutputParser[Dict[str, str]]):
-    """Parse company name and slogan from LLM output."""
-    
-    def parse(self, text: str) -> Dict[str, str]:
-        lines = text.strip().split("\n")
-        company_name = ""
-        slogan = ""
-        
-        for line in lines:
-            if line.startswith("Name:"):
-                company_name = line.replace("Name:", "").strip()
-            elif line.startswith("Slogan:"):
-                slogan = line.replace("Slogan:", "").strip()
-        
-        return {"company_name": company_name, "slogan": slogan}
+def preprocess_text(inputs):
+    """Clean and preprocess input text."""
+    text = inputs["text"]
+    # Remove extra whitespace and convert to lowercase
+    cleaned = " ".join(text.strip().split()).lower()
+    return {"text": cleaned}
 
-# Define the custom chain using LCEL
-prompt = PromptTemplate.from_template("""You are a creative marketing expert.
-Generate a company name and a catchy slogan for a company that makes {product}.
+def postprocess_response(response):
+    """Format the response."""
+    return {"formatted_response": f"✨ {response.strip()} ✨"}
 
-Format the output as:
-Name: [company name]
-Slogan: [company slogan]""")
+# Create a chain with preprocessing and postprocessing
+chain = (
+    RunnableLambda(preprocess_text)
+    | PromptTemplate.from_template("Improve this text: {text}")
+    | ChatOpenAI(model="gpt-3.5-turbo")
+    | RunnableLambda(postprocess_response)
+)
 
-llm = OpenAI(temperature=0.9)
-output_parser = CompanyOutputParser()
-
-# Create the chain
-custom_chain = prompt | llm | output_parser
-
-# Use the chain
-result = custom_chain.invoke({"product": "sustainable clothing"})
+result = chain.invoke({"text": "   HELLO    WORLD   how   are YOU?  "})
 print(result)
 ```
 
-## Error Handling and Validation
+## Error Handling and Fallbacks
 
 ```python
 from langchain_core.prompts import PromptTemplate
-from langchain_openai import OpenAI
+from langchain_openai import ChatOpenAI
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnableLambda
 
-def validate_input(inputs: dict) -> dict:
+def validate_input(inputs):
     """Validate inputs before processing."""
-    if not inputs.get("product"):
-        raise ValueError("Product name is required")
+    if not inputs.get("question") or len(inputs["question"].strip()) < 3:
+        raise ValueError("Question must be at least 3 characters long")
     return inputs
 
-def handle_errors(error: Exception) -> str:
-    """Handle errors gracefully."""
-    return f"Sorry, I encountered an error: {str(error)}"
+def fallback_response(error):
+    """Provide fallback response on error."""
+    return "I'm sorry, I couldn't process your request. Please try rephrasing your question."
 
-# Create a robust chain with validation and error handling
-prompt = PromptTemplate.from_template(
-    "What is a good name for a company that makes {product}?"
+# Create a robust chain with validation and fallbacks
+main_chain = (
+    RunnableLambda(validate_input)
+    | PromptTemplate.from_template("Answer this question clearly: {question}")
+    | ChatOpenAI(model="gpt-3.5-turbo")
+    | StrOutputParser()
 )
 
-chain = (
-    RunnableLambda(validate_input)
-    | prompt 
-    | OpenAI(temperature=0.9) 
-    | StrOutputParser()
-).with_fallbacks([RunnableLambda(handle_errors)])
+# Add fallback handling
+robust_chain = main_chain.with_fallbacks([
+    RunnableLambda(fallback_response)
+])
 
 # Test with valid input
 try:
-    result = chain.invoke({"product": "eco-friendly water bottles"})
-    print(f"Success: {result}")
+    result1 = robust_chain.invoke({"question": "What is artificial intelligence?"})
+    print(f"Success: {result1}")
 except Exception as e:
     print(f"Error: {e}")
 
 # Test with invalid input
 try:
-    result = chain.invoke({})
-    print(f"Result: {result}")
+    result2 = robust_chain.invoke({"question": "Hi"})
+    print(f"Fallback: {result2}")
 except Exception as e:
-    print(f"Error handled: {e}")
+    print(f"Error: {e}")
+```
+
+## Streaming Chains
+
+Enable streaming for real-time output:
+
+```python
+from langchain_core.prompts import PromptTemplate
+from langchain_openai import ChatOpenAI
+
+# Create a streaming chain
+prompt = PromptTemplate.from_template("Write a story about {topic}")
+llm = ChatOpenAI(model="gpt-3.5-turbo", streaming=True)
+
+chain = prompt | llm
+
+# Stream the response
+for chunk in chain.stream({"topic": "a robot learning to paint"}):
+    print(chunk.content, end="", flush=True)
+```
+
+## Async Chains
+
+Handle multiple requests concurrently:
+
+```python
+import asyncio
+from langchain_core.prompts import PromptTemplate
+from langchain_openai import ChatOpenAI
+from langchain_core.output_parsers import StrOutputParser
+
+async def async_chain_example():
+    # Create async chain
+    chain = (
+        PromptTemplate.from_template("Explain {topic} in one sentence")
+        | ChatOpenAI(model="gpt-3.5-turbo")
+        | StrOutputParser()
+    )
+    
+    # Process multiple topics concurrently
+    topics = ["quantum computing", "machine learning", "blockchain", "robotics"]
+    
+    # Run all requests concurrently
+    tasks = [chain.ainvoke({"topic": topic}) for topic in topics]
+    results = await asyncio.gather(*tasks)
+    
+    # Display results
+    for topic, result in zip(topics, results):
+        print(f"{topic.title()}: {result}")
+
+# Run the async example
+# asyncio.run(async_chain_example())
+```
+
+## Custom Output Parsers
+
+Create custom parsers for structured output:
+
+```python
+from langchain_core.output_parsers import BaseOutputParser
+from langchain_core.prompts import PromptTemplate
+from langchain_openai import ChatOpenAI
+import json
+import re
+
+class JsonOutputParser(BaseOutputParser):
+    """Parse JSON output from LLM."""
+    
+    def parse(self, text: str) -> dict:
+        # Extract JSON from the response
+        json_match = re.search(r'\{.*\}', text, re.DOTALL)
+        if json_match:
+            try:
+                return json.loads(json_match.group())
+            except json.JSONDecodeError:
+                return {"error": "Invalid JSON format"}
+        return {"error": "No JSON found in response"}
+
+class ListOutputParser(BaseOutputParser):
+    """Parse numbered list output from LLM."""
+    
+    def parse(self, text: str) -> list:
+        lines = text.strip().split('\n')
+        items = []
+        for line in lines:
+            # Match numbered list items (1. Item, 2. Item, etc.)
+            match = re.match(r'^\d+\.\s*(.+)', line.strip())
+            if match:
+                items.append(match.group(1))
+        return items
+
+# Use custom parsers
+json_chain = (
+    PromptTemplate.from_template(
+        "Create a JSON object with information about {topic}. "
+        "Include name, description, and category fields."
+    )
+    | ChatOpenAI(model="gpt-3.5-turbo")
+    | JsonOutputParser()
+)
+
+list_chain = (
+    PromptTemplate.from_template(
+        "List 5 benefits of {topic}. Format as a numbered list."
+    )
+    | ChatOpenAI(model="gpt-3.5-turbo")
+    | ListOutputParser()
+)
+
+# Test the parsers
+json_result = json_chain.invoke({"topic": "electric vehicles"})
+list_result = list_chain.invoke({"topic": "renewable energy"})
+
+print("JSON Result:", json_result)
+print("List Result:", list_result)
+```
+
+## Retrieval Chains
+
+Combine retrieval with generation for RAG (Retrieval-Augmented Generation):
+
+```python
+from langchain_core.prompts import PromptTemplate
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_community.vectorstores import FAISS
+from langchain_core.documents import Document
+from langchain_core.runnables import RunnablePassthrough
+
+# Sample documents
+docs = [
+    Document(page_content="Python is a programming language known for its simplicity."),
+    Document(page_content="Machine learning is a subset of artificial intelligence."),
+    Document(page_content="LangChain is a framework for building AI applications."),
+]
+
+# Create vector store
+embeddings = OpenAIEmbeddings()
+vectorstore = FAISS.from_documents(docs, embeddings)
+retriever = vectorstore.as_retriever()
+
+# Create RAG chain
+def format_docs(docs):
+    return "\n\n".join(doc.page_content for doc in docs)
+
+rag_chain = (
+    {"context": retriever | format_docs, "question": RunnablePassthrough()}
+    | PromptTemplate.from_template(
+        "Answer the question based on the context:\n\nContext: {context}\n\nQuestion: {question}\n\nAnswer:"
+    )
+    | ChatOpenAI(model="gpt-3.5-turbo")
+)
+
+# Use the RAG chain
+result = rag_chain.invoke("What is LangChain?")
+print(result.content)
+```
+
+## Chain Composition Patterns
+
+### Map-Reduce Pattern
+
+```python
+from langchain_core.prompts import PromptTemplate
+from langchain_openai import ChatOpenAI
+from langchain_core.output_parsers import StrOutputParser
+
+# Documents to process
+documents = [
+    "Document 1: AI is transforming healthcare...",
+    "Document 2: Machine learning improves diagnosis...",
+    "Document 3: Robots assist in surgery...",
+]
+
+# Map step: Summarize each document
+map_prompt = PromptTemplate.from_template(
+    "Summarize this document in one sentence: {doc}"
+)
+
+map_chain = map_prompt | ChatOpenAI(model="gpt-3.5-turbo") | StrOutputParser()
+
+# Process each document
+summaries = [map_chain.invoke({"doc": doc}) for doc in documents]
+
+# Reduce step: Combine summaries
+reduce_prompt = PromptTemplate.from_template(
+    "Combine these summaries into a final summary:\n{summaries}"
+)
+
+reduce_chain = reduce_prompt | ChatOpenAI(model="gpt-3.5-turbo") | StrOutputParser()
+
+final_summary = reduce_chain.invoke({"summaries": "\n".join(summaries)})
+print(final_summary)
+```
+
+### Pipeline Pattern
+
+```python
+from langchain_core.prompts import PromptTemplate
+from langchain_openai import ChatOpenAI
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.runnables import RunnableLambda
+
+def extract_keywords(text):
+    """Extract keywords from text."""
+    # Simplified keyword extraction
+    words = text.lower().split()
+    keywords = [word for word in words if len(word) > 5][:5]
+    return {"keywords": ", ".join(keywords)}
+
+def format_output(data):
+    """Format the final output."""
+    return f"Summary: {data['summary']}\nKeywords: {data['keywords']}"
+
+# Create pipeline
+pipeline = (
+    # Step 1: Generate summary
+    PromptTemplate.from_template("Summarize this text: {text}")
+    | ChatOpenAI(model="gpt-3.5-turbo")
+    | StrOutputParser()
+    | RunnableLambda(lambda summary: {"summary": summary, "text": summary})
+    
+    # Step 2: Extract keywords
+    | RunnableLambda(lambda data: {
+        "summary": data["summary"],
+        "keywords": extract_keywords(data["text"])["keywords"]
+    })
+    
+    # Step 3: Format output
+    | RunnableLambda(format_output)
+)
+
+result = pipeline.invoke({
+    "text": "Artificial intelligence is revolutionizing healthcare through machine learning algorithms that can analyze medical images, predict patient outcomes, and assist doctors in making more accurate diagnoses."
+})
+print(result)
 ```
 
 ## Best Practices
 
-### 1. Use Modern LCEL Syntax
-Prefer LangChain Expression Language (LCEL) for new chains as it provides better composability, streaming support, and async handling.
+### 1. Use LCEL for Modern Chains
+```python
+# Preferred: LCEL syntax
+chain = prompt | llm | output_parser
+
+# Legacy: Traditional chain classes (avoid for new code)
+# chain = LLMChain(llm=llm, prompt=prompt)
+```
 
 ### 2. Handle Errors Gracefully
-Always include error handling in your chains to manage cases where the model might return unexpected or malformed output.
-
-### 3. Validate Inputs
-Validate inputs before processing to catch issues early and provide helpful error messages.
-
-### 4. Use Type Hints
-Use Python's type hints to make your chains more maintainable and to catch potential issues early in development.
-
-### 5. Keep Chains Focused
-Each chain should have a single responsibility. Break down complex tasks into smaller, focused chains that can be composed together.
-
-### 6. Document Your Chains
-Include docstrings and comments to explain what each chain does, what inputs it expects, and what outputs it produces.
-
-### 7. Test Thoroughly
-Write unit tests for your chains to ensure they behave as expected with different inputs and edge cases.
-
-### 8. Consider Performance
-Use streaming and async operations when appropriate, especially for long-running chains or when processing multiple inputs.
-
 ```python
-# Example of async chain usage
-import asyncio
-from langchain_core.prompts import PromptTemplate
-from langchain_openai import OpenAI
+from langchain_core.runnables import RunnableLambda
 
-async def async_chain_example():
-    prompt = PromptTemplate.from_template("Tell me about {topic}")
-    llm = OpenAI(temperature=0.7)
-    chain = prompt | llm
+def safe_chain_with_fallback():
+    main_chain = prompt | llm | output_parser
+    fallback_chain = RunnableLambda(lambda x: "Sorry, I couldn't process your request.")
     
-    # Process multiple topics concurrently
-    topics = ["AI", "blockchain", "quantum computing"]
-    tasks = [chain.ainvoke({"topic": topic}) for topic in topics]
-    results = await asyncio.gather(*tasks)
-    
-    for topic, result in zip(topics, results):
-        print(f"{topic}: {result[:100]}...")
+    return main_chain.with_fallbacks([fallback_chain])
+```
 
-# Run async example
-# asyncio.run(async_chain_example())
+### 3. Use Type Hints
+```python
+from typing import Dict, Any
+from langchain_core.runnables import RunnableLambda
+
+def typed_processor(inputs: Dict[str, Any]) -> Dict[str, str]:
+    return {"processed": inputs["text"].upper()}
+
+chain = RunnableLambda(typed_processor) | prompt | llm
+```
+
+### 4. Implement Proper Logging
+```python
+import logging
+from langchain_core.runnables import RunnableLambda
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+def log_step(data):
+    logger.info(f"Processing: {data}")
+    return data
+
+chain = RunnableLambda(log_step) | prompt | llm | RunnableLambda(log_step)
+```
+
+### 5. Test Your Chains
+```python
+def test_chain():
+    test_cases = [
+        {"input": "test input 1", "expected": "expected output 1"},
+        {"input": "test input 2", "expected": "expected output 2"},
+    ]
+    
+    for case in test_cases:
+        result = chain.invoke(case["input"])
+        assert result is not None, f"Chain failed for input: {case['input']}"
+        print(f"✅ Test passed for: {case['input']}")
+
+# test_chain()
+```
+
+### 6. Monitor Performance
+```python
+import time
+from langchain_core.runnables import RunnableLambda
+
+def time_operation(data):
+    start_time = time.time()
+    # Process data here
+    end_time = time.time()
+    print(f"Operation took {end_time - start_time:.2f} seconds")
+    return data
+
+timed_chain = RunnableLambda(time_operation) | prompt | llm
 ```
