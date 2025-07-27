@@ -1,15 +1,6 @@
-<div align="center">
-
 # 🚀 Basic Usage Examples
 
 **Master the Fundamentals of LangChain Development**
-
-[![Beginner Friendly](https://img.shields.io/badge/level-beginner-green.svg)](.)
-[![Code Examples](https://img.shields.io/badge/examples-working-blue.svg)](.)
-[![Python](https://img.shields.io/badge/language-Python-yellow.svg)](.)
-[![Updated](https://img.shields.io/badge/updated-2024-brightgreen.svg)](.)
-
-</div>
 
 ---
 
@@ -34,7 +25,7 @@ Before running these examples, make sure you have:
 
 ```bash
 # Install required packages
-pip install langchain langchain-openai python-dotenv
+pip install langchain langchain-openai langchain-community python-dotenv
 
 # Set your API keys
 export OPENAI_API_KEY='your-openai-key-here'
@@ -51,8 +42,8 @@ export SERPAPI_API_KEY='your-serpapi-key-here'
 The simplest way to interact with an LLM:
 
 ```python
-from langchain.chat_models import ChatOpenAI
-from langchain.schema import HumanMessage, SystemMessage
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import HumanMessage, SystemMessage
 
 # Initialize the chat model
 chat = ChatOpenAI(
@@ -68,7 +59,7 @@ messages = [
 ]
 
 # Get response
-response = chat(messages)
+response = chat.invoke(messages)
 print(f"🤖 AI: {response.content}")
 ```
 
@@ -77,14 +68,12 @@ print(f"🤖 AI: {response.content}")
 For real-time applications, stream responses as they're generated:
 
 ```python
-from langchain.chat_models import ChatOpenAI
-from langchain.schema import HumanMessage
-import sys
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import HumanMessage
 
 def stream_response():
     chat = ChatOpenAI(
         model="gpt-3.5-turbo",
-        streaming=True,
         temperature=0.8
     )
     
@@ -107,7 +96,7 @@ LangChain works with many LLM providers:
 
 ```python
 # OpenAI
-from langchain.chat_models import ChatOpenAI
+from langchain_openai import ChatOpenAI
 openai_chat = ChatOpenAI(model="gpt-4")
 
 # Anthropic (requires: pip install langchain-anthropic)
@@ -117,8 +106,8 @@ anthropic_chat = ChatAnthropic(model="claude-3-sonnet-20240229")
 # Test with the same prompt
 prompt = [HumanMessage(content="What makes a good AI assistant?")]
 
-print("🤖 OpenAI:", openai_chat(prompt).content[:100] + "...")
-print("🧠 Anthropic:", anthropic_chat(prompt).content[:100] + "...")
+print("🤖 OpenAI:", openai_chat.invoke(prompt).content[:100] + "...")
+print("🧠 Anthropic:", anthropic_chat.invoke(prompt).content[:100] + "...")
 ```
 
 ---
@@ -130,12 +119,12 @@ print("🧠 Anthropic:", anthropic_chat(prompt).content[:100] + "...")
 Convert text into numerical vectors for semantic search:
 
 ```python
-from langchain.embeddings import OpenAIEmbeddings
+from langchain_openai import OpenAIEmbeddings
 import numpy as np
 
 def generate_embeddings():
     # Initialize embeddings model
-    embeddings = OpenAIEmbeddings(model="text-embedding-ada-002")
+    embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
     
     # Sample texts
     texts = [
@@ -166,7 +155,7 @@ generate_embeddings()
 Find the most similar text from a collection:
 
 ```python
-from langchain.embeddings import OpenAIEmbeddings
+from langchain_openai import OpenAIEmbeddings
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -207,19 +196,19 @@ semantic_search()
 
 ## ⛓️ Chains
 
-### **Simple LLM Chain**
+### **Simple Chain with LCEL**
 
-Chain together a prompt template and LLM:
+Modern chain creation using LangChain Expression Language:
 
 ```python
-from langchain import LLMChain, PromptTemplate
-from langchain.llms import OpenAI
+from langchain_core.prompts import PromptTemplate
+from langchain_openai import ChatOpenAI
+from langchain_core.output_parsers import StrOutputParser
 
 def create_simple_chain():
     # Create a prompt template
-    prompt = PromptTemplate(
-        input_variables=["topic", "audience"],
-        template="""Explain {topic} to {audience} in a way they can understand.
+    prompt = PromptTemplate.from_template(
+        """Explain {topic} to {audience} in a way they can understand.
         
         Topic: {topic}
         Audience: {audience}
@@ -228,10 +217,10 @@ def create_simple_chain():
     )
     
     # Initialize LLM
-    llm = OpenAI(temperature=0.7, max_tokens=200)
+    llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.7)
     
-    # Create chain
-    chain = LLMChain(llm=llm, prompt=prompt)
+    # Create chain using LCEL
+    chain = prompt | llm | StrOutputParser()
     
     # Test with different inputs
     examples = [
@@ -241,7 +230,7 @@ def create_simple_chain():
     ]
     
     for example in examples:
-        result = chain.run(**example)
+        result = chain.invoke(example)
         print(f"🎯 {example['topic']} for {example['audience']}:")
         print(f"📝 {result.strip()}\n")
 
@@ -249,36 +238,36 @@ def create_simple_chain():
 create_simple_chain()
 ```
 
-### **Sequential Chain**
+### **Sequential Chain with LCEL**
 
 Chain multiple operations together:
 
 ```python
-from langchain.chains import SimpleSequentialChain, LLMChain
-from langchain.prompts import PromptTemplate
-from langchain.llms import OpenAI
+from langchain_core.prompts import PromptTemplate
+from langchain_openai import ChatOpenAI
+from langchain_core.output_parsers import StrOutputParser
 
 def sequential_chain_example():
-    llm = OpenAI(temperature=0.7)
+    llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.7)
+    output_parser = StrOutputParser()
     
     # First chain: Generate a business idea
-    idea_template = "Generate a creative business idea for: {industry}"
-    idea_prompt = PromptTemplate(input_variables=["industry"], template=idea_template)
-    idea_chain = LLMChain(llm=llm, prompt=idea_prompt)
+    idea_prompt = PromptTemplate.from_template("Generate a creative business idea for: {industry}")
+    idea_chain = idea_prompt | llm | output_parser
     
     # Second chain: Create a marketing slogan
-    slogan_template = "Create a catchy marketing slogan for this business: {business_idea}"
-    slogan_prompt = PromptTemplate(input_variables=["business_idea"], template=slogan_template)
-    slogan_chain = LLMChain(llm=llm, prompt=slogan_prompt)
+    slogan_prompt = PromptTemplate.from_template("Create a catchy marketing slogan for this business: {business_idea}")
     
-    # Combine chains
-    overall_chain = SimpleSequentialChain(
-        chains=[idea_chain, slogan_chain],
-        verbose=True
+    # Combine chains using LCEL
+    full_chain = (
+        {"business_idea": idea_chain}
+        | slogan_prompt
+        | llm
+        | output_parser
     )
     
     # Run the chain
-    result = overall_chain.run("sustainable technology")
+    result = full_chain.invoke({"industry": "sustainable technology"})
     print(f"🚀 Final Result: {result}")
 
 # Run sequential chain example
@@ -295,33 +284,44 @@ Maintain conversation context:
 
 ```python
 from langchain.memory import ConversationBufferMemory
-from langchain import LLMChain, OpenAI, PromptTemplate
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_openai import ChatOpenAI
+from langchain_core.runnables import RunnablePassthrough
 
 def conversation_with_memory():
     # Create memory
-    memory = ConversationBufferMemory(memory_key="chat_history")
+    memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
     
     # Create prompt that uses memory
-    template = """You are a helpful AI assistant with a good memory.
-    
-    Chat History:
-    {chat_history}
-    
-    Human: {human_input}
-    Assistant:"""
-    
-    prompt = PromptTemplate(
-        input_variables=["chat_history", "human_input"],
-        template=template
-    )
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", "You are a helpful AI assistant with a good memory."),
+        MessagesPlaceholder(variable_name="chat_history"),
+        ("human", "{human_input}")
+    ])
     
     # Create chain with memory
-    llm_chain = LLMChain(
-        llm=OpenAI(temperature=0.7),
-        prompt=prompt,
-        memory=memory,
-        verbose=True
+    llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.7)
+    
+    def load_memory(_):
+        return memory.load_memory_variables({})["chat_history"]
+    
+    chain = (
+        RunnablePassthrough.assign(chat_history=load_memory)
+        | prompt
+        | llm
     )
+    
+    # Function to run conversation with memory
+    def chat_with_memory(user_input: str):
+        response = chain.invoke({"human_input": user_input})
+        
+        # Save to memory
+        memory.save_context(
+            {"human_input": user_input},
+            {"output": response.content}
+        )
+        
+        return response.content
     
     # Simulate conversation
     conversation = [
@@ -335,8 +335,8 @@ def conversation_with_memory():
     print("🗣️ Starting conversation with memory:")
     for user_input in conversation:
         print(f"\n👤 Human: {user_input}")
-        response = llm_chain.predict(human_input=user_input)
-        print(f"🤖 Assistant: {response.strip()}")
+        response = chat_with_memory(user_input)
+        print(f"🤖 Assistant: {response}")
 
 # Run memory example
 conversation_with_memory()
@@ -348,28 +348,22 @@ For longer conversations, use summary memory:
 
 ```python
 from langchain.memory import ConversationSummaryMemory
-from langchain.llms import OpenAI
+from langchain_openai import ChatOpenAI
 
 def summary_memory_example():
-    llm = OpenAI(temperature=0)
+    llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0)
     memory = ConversationSummaryMemory(llm=llm)
     
     # Add some conversation history
     conversation_data = [
-        ("Human", "I'm planning a trip to Japan in the spring"),
-        ("AI", "That's wonderful! Spring is cherry blossom season. When are you planning to go?"),
-        ("Human", "Probably in April. I want to see the sakura blooms"),
-        ("AI", "April is perfect timing! The cherry blossoms typically peak in early April in Tokyo and Kyoto."),
-        ("Human", "What should I pack for the weather?"),
-        ("AI", "April weather in Japan is mild but can be unpredictable. Pack layers, a light jacket, and comfortable walking shoes.")
+        ("I'm planning a trip to Japan in the spring", "That's wonderful! Spring is cherry blossom season. When are you planning to go?"),
+        ("Probably in April. I want to see the sakura blooms", "April is perfect timing! The cherry blossoms typically peak in early April in Tokyo and Kyoto."),
+        ("What should I pack for the weather?", "April weather in Japan is mild but can be unpredictable. Pack layers, a light jacket, and comfortable walking shoes.")
     ]
     
     # Add to memory
-    for speaker, message in conversation_data:
-        if speaker == "Human":
-            memory.save_context({"input": message}, {"output": ""})
-        else:
-            memory.save_context({"input": ""}, {"output": message})
+    for human_msg, ai_msg in conversation_data:
+        memory.save_context({"input": human_msg}, {"output": ai_msg})
     
     # Get summary
     summary = memory.buffer
@@ -388,29 +382,65 @@ summary_memory_example()
 Extend LLM capabilities with tools:
 
 ```python
-from langchain.agents import load_tools, initialize_agent, AgentType
-from langchain.llms import OpenAI
+from langchain.tools import tool
+from langchain.agents import create_openai_functions_agent, AgentExecutor
+from langchain_openai import ChatOpenAI
+from langchain_core.prompts import ChatPromptTemplate
+
+@tool
+def calculator(expression: str) -> float:
+    """Perform mathematical calculations safely."""
+    try:
+        # Safe evaluation of mathematical expressions
+        import ast
+        import operator
+        
+        operators = {
+            ast.Add: operator.add,
+            ast.Sub: operator.sub,
+            ast.Mult: operator.mul,
+            ast.Div: operator.truediv,
+            ast.Pow: operator.pow,
+            ast.USub: operator.neg,
+        }
+        
+        def eval_expr(node):
+            if isinstance(node, ast.Constant):
+                return node.value
+            elif isinstance(node, ast.BinOp):
+                return operators[type(node.op)](eval_expr(node.left), eval_expr(node.right))
+            elif isinstance(node, ast.UnaryOp):
+                return operators[type(node.op)](eval_expr(node.operand))
+            else:
+                raise TypeError(node)
+        
+        return eval_expr(ast.parse(expression, mode='eval').body)
+    except:
+        return "Error: Invalid mathematical expression"
 
 def basic_tools_example():
     # Initialize LLM
-    llm = OpenAI(temperature=0)
+    llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0)
     
-    # Load tools
-    tools = load_tools(["llm-math"], llm=llm)
+    # Create tools
+    tools = [calculator]
+    
+    # Create prompt
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", "You are a helpful assistant with access to tools."),
+        ("human", "{input}"),
+        ("placeholder", "{agent_scratchpad}"),
+    ])
     
     # Create agent
-    agent = initialize_agent(
-        tools, 
-        llm, 
-        agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION, 
-        verbose=True
-    )
+    agent = create_openai_functions_agent(llm, tools, prompt)
+    agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
     
     # Test math calculation
-    result = agent.run("What is 25 * 47 + 123?")
-    print(f"🧮 Calculation result: {result}")
+    result = agent_executor.invoke({"input": "What is 25 * 47 + 123?"})
+    print(f"🧮 Calculation result: {result['output']}")
 
-# Run tools example (Note: requires SERPAPI_API_KEY for web search)
+# Run tools example
 basic_tools_example()
 ```
 
@@ -419,38 +449,37 @@ basic_tools_example()
 Create your own tools:
 
 ```python
-from langchain.tools import BaseTool
-from langchain.agents import initialize_agent, AgentType
-from langchain.llms import OpenAI
+from langchain.tools import tool
+from langchain.agents import create_openai_functions_agent, AgentExecutor
+from langchain_openai import ChatOpenAI
+from langchain_core.prompts import ChatPromptTemplate
 import random
 
-class RandomNumberTool(BaseTool):
-    name = "random_number"
-    description = "Generate a random number between two given numbers"
-    
-    def _run(self, min_val: int, max_val: int) -> str:
-        result = random.randint(int(min_val), int(max_val))
-        return f"Random number between {min_val} and {max_val}: {result}"
-    
-    def _arun(self, min_val: int, max_val: int):
-        raise NotImplementedError("This tool does not support async")
+@tool
+def random_number(min_val: int, max_val: int) -> str:
+    """Generate a random number between two given numbers."""
+    result = random.randint(min_val, max_val)
+    return f"Random number between {min_val} and {max_val}: {result}"
 
 def custom_tool_example():
     # Initialize LLM and tools
-    llm = OpenAI(temperature=0)
-    tools = [RandomNumberTool()]
+    llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0)
+    tools = [random_number]
+    
+    # Create prompt
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", "You are a helpful assistant with access to tools."),
+        ("human", "{input}"),
+        ("placeholder", "{agent_scratchpad}"),
+    ])
     
     # Create agent
-    agent = initialize_agent(
-        tools,
-        llm,
-        agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
-        verbose=True
-    )
+    agent = create_openai_functions_agent(llm, tools, prompt)
+    agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
     
     # Use the custom tool
-    result = agent.run("Generate a random number between 1 and 100")
-    print(f"🎲 Random result: {result}")
+    result = agent_executor.invoke({"input": "Generate a random number between 1 and 100"})
+    print(f"🎲 Random result: {result['output']}")
 
 # Run custom tool example
 custom_tool_example()
@@ -465,10 +494,9 @@ custom_tool_example()
 Store and search documents semantically:
 
 ```python
-from langchain.vectorstores import FAISS
-from langchain.embeddings import OpenAIEmbeddings
-from langchain.document_loaders import TextLoader
-from langchain.text_splitter import CharacterTextSplitter
+from langchain_community.vectorstores import FAISS
+from langchain_openai import OpenAIEmbeddings
+from langchain_core.documents import Document
 
 def vector_store_example():
     # Sample documents
@@ -480,11 +508,14 @@ def vector_store_example():
         "Embeddings capture semantic meaning of text"
     ]
     
+    # Create documents
+    documents = [Document(page_content=text) for text in texts]
+    
     # Create embeddings
     embeddings = OpenAIEmbeddings()
     
     # Create vector store
-    vectorstore = FAISS.from_texts(texts, embeddings)
+    vectorstore = FAISS.from_documents(documents, embeddings)
     
     # Search for similar documents
     query = "What is a framework for AI applications?"
@@ -508,11 +539,12 @@ vector_store_example()
 Combine multiple concepts into a working application:
 
 ```python
-from langchain.vectorstores import FAISS
-from langchain.embeddings import OpenAIEmbeddings
-from langchain.chains import RetrievalQA
-from langchain.llms import OpenAI
-from langchain.text_splitter import CharacterTextSplitter
+from langchain_community.vectorstores import FAISS
+from langchain_openai import OpenAIEmbeddings, ChatOpenAI
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import RunnablePassthrough
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.documents import Document
 
 def smart_qa_system():
     # Knowledge base
@@ -525,19 +557,34 @@ def smart_qa_system():
         "LangSmith is a platform for monitoring, evaluating, and debugging LLM applications built with LangChain."
     ]
     
-    # Split documents if they're long
-    text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
-    texts = text_splitter.split_text('\n'.join(documents))
+    # Create documents
+    docs = [Document(page_content=doc) for doc in documents]
     
     # Create vector store
     embeddings = OpenAIEmbeddings()
-    vectorstore = FAISS.from_texts(texts, embeddings)
+    vectorstore = FAISS.from_documents(docs, embeddings)
+    retriever = vectorstore.as_retriever()
+    
+    # Create QA prompt
+    template = """Answer the question based only on the following context:
+
+{context}
+
+Question: {question}
+
+Answer:"""
+    
+    prompt = ChatPromptTemplate.from_template(template)
     
     # Create QA chain
-    qa = RetrievalQA.from_chain_type(
-        llm=OpenAI(temperature=0),
-        chain_type="stuff",
-        retriever=vectorstore.as_retriever()
+    def format_docs(docs):
+        return "\n\n".join(doc.page_content for doc in docs)
+    
+    rag_chain = (
+        {"context": retriever | format_docs, "question": RunnablePassthrough()}
+        | prompt
+        | ChatOpenAI(model="gpt-3.5-turbo", temperature=0)
+        | StrOutputParser()
     )
     
     # Test questions
@@ -550,9 +597,9 @@ def smart_qa_system():
     
     print("🧠 Smart Q&A System Demo:")
     for question in questions:
-        answer = qa.run(question)
+        answer = rag_chain.invoke(question)
         print(f"\n❓ Q: {question}")
-        print(f"✅ A: {answer.strip()}")
+        print(f"✅ A: {answer}")
 
 # Run complete example
 smart_qa_system()
@@ -566,11 +613,11 @@ smart_qa_system()
 
 Now that you understand the basics, explore these advanced concepts:
 
-1. **[🔗 Advanced Chains](../chains.md)** - Complex chain compositions and routing
-2. **[🤖 Intelligent Agents](../agents.md)** - Building autonomous AI agents
-3. **[📚 Document Processing](../indexes.md)** - RAG systems and document analysis
-4. **[🔍 LangSmith Monitoring](../LangSmithSection.md)** - Debug and monitor your applications
-5. **[🌐 Production Deployment](../LangServeSection.md)** - Deploy your apps as APIs
+1. **🔗 Advanced Chains** - Complex chain compositions and routing
+2. **🤖 Intelligent Agents** - Building autonomous AI agents
+3. **📚 Document Processing** - RAG systems and document analysis
+4. **🔍 LangSmith Monitoring** - Debug and monitor your applications
+5. **🌐 Production Deployment** - Deploy your apps as APIs
 
 ### **Practice Exercises**
 
@@ -581,18 +628,8 @@ Try building these on your own:
 - **🤖 Smart Chatbot**: Build a contextual conversation system
 - **🔍 Semantic Search**: Create a search engine for your content
 
-### **Get Help**
-
-- **💬 Questions?** [Join Discussions](https://github.com/0x-Professor/langforge-docs/discussions)
-- **🐛 Issues?** [Report Problems](https://github.com/0x-Professor/langforge-docs/issues)
-- **📖 Need More Examples?** [Browse Advanced Usage](../advanced-usage/)
-
 ---
-
-<div align="center">
 
 **🎉 Congratulations! You've mastered the LangChain basics!**
 
 *Ready to build something amazing? The AI application ecosystem awaits you!*
-
-</div>
