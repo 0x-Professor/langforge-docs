@@ -1731,26 +1731,93 @@ This advanced topics section provides in-depth knowledge for building production
 
 ## Quick Start
 
+### Python
+
+Here's a simple example of using LangChain to create a question-answering application:
+
 ```python
 from langchain.llms import OpenAI
+from langchain.chains import LLMChain
 from langchain.prompts import PromptTemplate
 
 # Initialize the language model
-llm = OpenAI(temperature=0.9)
+llm = OpenAI(temperature=0.7)
 
 # Create a prompt template
-template = "What is a good name for a company that makes {product}?"
-prompt = PromptTemplate(
-    input_variables=["product"],
-    template=template,
-)
+template = """Question: {question}
+
+Answer: Let me think step by step.
+"""
+prompt = PromptTemplate(template=template, input_variables=["question"])
+
+# Create a chain
+qa_chain = LLMChain(llm=llm, prompt=prompt)
 
 # Run the chain
-print(prompt.format(product="colorful socks"))
-# Output: What is a good name for a company that makes colorful socks?
+question = "What is the capital of France?"
+result = qa_chain.run(question=question)
+print(result)
+```
 
-# Generate completion
-print(llm(prompt.format(product="colorful socks")))
+### TypeScript
+
+Here's the same example using the LangChain TypeScript SDK:
+
+```typescript
+import { OpenAI } from "langchain/llms/openai";
+import { LLMChain } from "langchain/chains";
+import { PromptTemplate } from "langchain/prompts";
+
+// Initialize the language model
+const model = new OpenAI({
+  temperature: 0.7,
+  openAIApiKey: process.env.OPENAI_API_KEY,
+});
+
+// Create a prompt template
+const template = `Question: {question}
+
+Answer: Let me think step by step.`;
+
+const prompt = new PromptTemplate({
+  template,
+  inputVariables: ["question"],
+});
+
+// Create a chain
+const qaChain = new LLMChain({
+  llm: model,
+  prompt,
+});
+
+// Run the chain
+const question = "What is the capital of France?";
+const result = await qaChain.call({ question });
+console.log(result.text);
+```
+
+### Installation
+
+#### Python
+```bash
+pip install langchain openai
+```
+
+#### TypeScript
+```bash
+npm install langchain @langchain/openai
+```
+
+#### Environment Setup
+
+For both Python and TypeScript, you'll need to set up your OpenAI API key:
+
+```bash
+# For Python
+export OPENAI_API_KEY='your-api-key-here'
+
+# For TypeScript (add to .env file)
+OPENAI_API_KEY=your-api-key-here
 ```
 
 ## Common Use Cases
