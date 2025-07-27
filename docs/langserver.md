@@ -79,7 +79,7 @@ LangServer can be configured through multiple methods (in order of priority):
 
 #### Basic Configuration
 
-Create a `pyproject.toml` in your project root with the following structure:
+For Python projects, create a `pyproject.toml`:
 
 ```toml
 [build-system]
@@ -151,10 +151,167 @@ jedi_settings = { extra_paths = ["src"], environment = ".venv" }
 
 # Extension Settings
 [tool.langserver.extensions]
-# Enable/disable specific extensions
 pylsp = true
 pyright = false
 jedi = true
+```
+
+For TypeScript/JavaScript projects, create a `langserver.config.js`:
+
+```javascript
+// langserver.config.js
+module.exports = {
+  // Server Configuration
+  server: {
+    host: '127.0.0.1',
+    port: 2087,
+    logLevel: 'info', // debug, info, warning, error
+    logFile: '.langserver/langserver.log'
+  },
+
+  // Feature Toggles
+  features: {
+    completion: true,
+    hover: true,
+    diagnostics: true,
+    formatting: true,
+    rename: true,
+    references: true,
+    workspaceSymbols: true
+  },
+
+  // TypeScript/JavaScript Settings
+  typescript: {
+    tsdk: 'node_modules/typescript/lib',
+    format: {
+      insertSpaceAfterFunctionKeywordForAnonymousFunctions: true,
+      placeOpenBraceOnNewLineForFunctions: false
+    },
+    inlayHints: {
+      includeInlayParameterNameHints: 'all',
+      includeInlayParameterNameHintsWhenArgumentMatchesName: true,
+      includeInlayFunctionParameterTypeHints: true,
+      includeInlayVariableTypeHints: true,
+      includeInlayPropertyDeclarationTypeHints: true,
+      includeInlayFunctionLikeReturnTypeHints: true,
+      includeInlayEnumMemberValueHints: true
+    }
+  },
+
+  // Path Configuration
+  paths: {
+    sourceRoots: ['src'],
+    excludePatterns: ['**/node_modules/**', '**/.git/**', '**/.next/**', '**/dist/**', '**/build/**']
+  },
+
+  // Completion Settings
+  completion: {
+    enableSnippets: true,
+    resolveEagerly: false,
+    completeFunctionCalls: true,
+    importModuleSpecifier: 'shortest', // 'shortest', 'relative', 'non-relative', 'project-relative', 'auto-import'
+    importModuleSpecifierEnding: 'minimal' // 'minimal', 'index', 'js', 'jsx', 'auto'
+  },
+
+  // Diagnostic Settings
+  diagnostics: {
+    enable: true,
+    run: 'onSave', // 'onType', 'off'
+    maxNumberOfProblems: 100,
+    experimental: {
+      typeAcquisition: {
+        enable: true
+      },
+      moduleResolution: 'node' // 'node', 'classic', 'node16', 'nodenext'
+    }
+  },
+
+  // Formatting Settings
+  formatting: {
+    provider: 'prettier', // 'prettier', 'eslint', 'none'
+    options: {
+      printWidth: 100,
+      tabWidth: 2,
+      useTabs: false,
+      semi: true,
+      singleQuote: true,
+      trailingComma: 'es5',
+      bracketSpacing: true,
+      bracketSameLine: false,
+      arrowParens: 'avoid',
+      endOfLine: 'lf'
+    }
+  },
+
+  // AI Features (optional)
+  ai: {
+    enabled: true,
+    model: 'gpt-4', // or 'gpt-3.5-turbo', 'claude-2'
+    apiKey: process.env.OPENAI_API_KEY,
+    maxTokens: 2048,
+    temperature: 0.7,
+    topP: 1,
+    frequencyPenalty: 0,
+    presencePenalty: 0
+  },
+
+  // Logging Configuration
+  logging: {
+    level: 'info',
+    path: '.langserver/logs',
+    maxSize: '10MB',
+    backupCount: 3
+  },
+
+  // Performance Settings
+  performance: {
+    maxWorkers: 4,
+    maxMemory: '2GB',
+    typescript: {
+      maxTsServerMemory: 4096, // MB
+      watchOptions: {
+        watchFile: 'useFsEvents', // 'useFsEvents', 'useFsEventsOnParentDirectory', 'dynamicPriorityPolling', 'fixedPollingInterval', 'fixedChunkSizePolling'
+        watchDirectory: 'useFsEvents', // 'fixedPollingInterval', 'dynamicPriorityPolling', 'fixedChunkSizePolling'
+        fallbackPolling: 'dynamicPriority', // 'dynamicPriority', 'fixedInterval', 'priorityInterval', 'fixedChunkSize'
+        synchronousWatchDirectory: true
+      }
+    }
+  },
+
+  // Extension Settings
+  extensions: {
+    eslint: true,
+    prettier: true,
+    typescript: true,
+    javascript: true
+  }
+};
+```
+
+Or use `package.json` for simpler configurations:
+
+```json
+{
+  "name": "my-project",
+  "version": "1.0.0",
+  "langserver": {
+    "server": {
+      "host": "127.0.0.1",
+      "port": 2087,
+      "logLevel": "info"
+    },
+    "typescript": {
+      "tsdk": "node_modules/typescript/lib"
+    },
+    "formatting": {
+      "provider": "prettier"
+    },
+    "paths": {
+      "sourceRoots": ["src"],
+      "excludePatterns": ["**/node_modules/**"]
+    }
+  }
+}
 ```
 
 ### Configuration Options Explained
@@ -245,8 +402,11 @@ require('lspconfig').langserver.setup {
 # Basic usage
 langserver start
 
-# With custom configuration
+# With custom configuration (Python)
 langserver start --config pyproject.toml
+
+# With custom configuration (TypeScript/JavaScript)
+langserver start --config langserver.config.js
 
 # Development mode with debug logging
 LANG_SERVER_DEBUG=1 langserver start --log-level=debug
@@ -283,7 +443,7 @@ systemctl --user enable langserver
 journalctl --user -u langserver -f
 ```
 
-#### Programmatic Usage
+#### Programmatic Usage (Python)
 
 ```python
 from pathlib import Path
@@ -314,6 +474,135 @@ async def on_did_open(ls, params):
 if __name__ == "__main__":
     server.start()
 ```
+
+#### Programmatic Usage (TypeScript)
+
+```typescript
+import { LanguageServer, ServerConfig } from '@langserver/node';
+import { TextDocuments } from 'vscode-languageserver/node';
+import { TextDocument } from 'vscode-languageserver-textdocument';
+import path from 'path';
+
+// Create a configuration
+const config: ServerConfig = {
+  server: {
+    host: '127.0.0.1',
+    port: 2087,
+    logLevel: 'info',
+  },
+  features: {
+    completion: true,
+    hover: true,
+    diagnostics: true,
+  },
+  // ... other config options
+};
+
+// Create documents manager
+const documents = new TextDocuments(TextDocument);
+
+// Create the server
+const server = new LanguageServer({
+  name: 'my-langserver',
+  version: '1.0.0',
+  config,
+  documents,
+});
+
+// Register event handlers
+server.onInitialized(() => {
+  console.log('Language server initialized');  
+});
+
+// Handle document open
+server.onDidOpenTextDocument((params) => {
+  const doc = documents.get(params.textDocument.uri);
+  if (doc) {
+    console.log(`Document opened: ${doc.uri}`);
+  }
+});
+
+// Start the server
+server.start().catch(error => {
+  console.error('Failed to start language server:', error);
+  process.exit(1);
+});
+
+// Handle shutdown
+process.on('SIGINT', () => {
+  server.shutdown().finally(() => process.exit(0));
+});
+
+// Handle errors
+server.onError((error) => {
+  console.error('Language server error:', error);
+});
+```
+
+#### TypeScript Client Example
+
+```typescript
+import { LanguageClient, LanguageClientOptions, ServerOptions } from 'vscode-languageclient/node';
+
+// Server options
+const serverOptions: ServerOptions = {
+  command: 'langserver',
+  args: ['start', '--config', 'langserver.config.js'],
+  options: {
+    env: {
+      ...process.env,
+      NODE_ENV: 'development',
+      DEBUG: 'langserver:*',
+    },
+  },
+};
+
+// Client options
+const clientOptions: LanguageClientOptions = {
+  documentSelector: [
+    { scheme: 'file', language: 'typescript' },
+    { scheme: 'file', language: 'javascript' },
+    { scheme: 'file', language: 'python' },
+  ],
+  synchronize: {
+    fileEvents: [
+      workspace.createFileSystemWatcher('**/*.{ts,tsx,js,jsx,py}'),
+      workspace.createFileSystemWatcher('**/tsconfig.json'),
+      workspace.createFileSystemWatcher('**/package.json'),
+    ],
+  },
+  outputChannel: window.createOutputChannel('LangServer'),
+  traceOutputChannel: window.createOutputChannel('LangServer Trace'),
+};
+
+// Create the language client
+const client = new LanguageClient(
+  'langserver',
+  'LangServer',
+  serverOptions,
+  clientOptions
+);
+
+// Start the client
+client.start();
+
+// Handle client ready
+client.onReady().then(() => {
+  console.log('LangServer client is ready');
+  
+  // Register custom commands
+  client.onRequest('custom/command', async (params) => {
+    console.log('Custom command received:', params);
+    return { result: 'Command executed' };
+  });
+});
+
+// Handle client error
+client.onDidChangeState((event) => {
+  if (event.newState === 3) { // Error state
+    console.error('Language server error:', event);
+  }
+});
 
 ## Editor Integration
 
