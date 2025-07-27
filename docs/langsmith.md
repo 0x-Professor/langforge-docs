@@ -20,11 +20,21 @@ LangSmith is a powerful platform for developing, monitoring, and improving LLM a
 
 ### 1. Installation
 
+#### Python
+
 ```bash
 pip install langsmith
 ```
 
+#### TypeScript
+
+```bash
+npm install @langchain/langgraph @langchain/core
+```
+
 ### 2. Set Up Your Environment
+
+#### Python
 
 ```python
 import os
@@ -42,7 +52,28 @@ os.environ["LANGCHAIN_TRACING_V2"] = "true"
 llm = ChatOpenAI(temperature=0.7, model_name="gpt-4")
 ```
 
+#### TypeScript
+
+```typescript
+import { ChatOpenAI } from "@langchain/openai";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { LLMChain } from "langchain/chains";
+
+// Set your API keys
+process.env.OPENAI_API_KEY = "your-openai-key";
+process.env.LANGCHAIN_API_KEY = "your-langchain-api-key";
+process.env.LANGCHAIN_TRACING_V2 = "true";
+
+// Initialize your model
+const llm = new ChatOpenAI({
+  temperature: 0.7,
+  modelName: "gpt-4",
+});
+```
+
 ### 3. Create a Simple Chain
+
+#### Python
 
 ```python
 # Define a prompt template
@@ -58,7 +89,30 @@ response = chain.run(question="What is LangSmith?")
 print(response)
 ```
 
+#### TypeScript
+
+```typescript
+// Define a prompt template
+const prompt = ChatPromptTemplate.fromTemplate(
+  "You are a helpful assistant. Answer the following question: {question}"
+);
+
+// Create a chain
+const chain = new LLMChain({
+  llm,
+  prompt,
+});
+
+// Test the chain
+const response = await chain.call({
+  question: "What is LangSmith?",
+});
+console.log(response);
+```
+
 ### 4. Set Up Tracing
+
+#### Python
 
 ```python
 # Enable tracing (already set in environment variables above)
@@ -70,7 +124,31 @@ with tracing_enabled():
     print(f"Trace URL: {tracing.get_trace_url()}")
 ```
 
+#### TypeScript
+
+```typescript
+import { CallbackManager } from "@langchain/core/callbacks/manager";
+
+// Enable tracing (already set in environment variables)
+// All subsequent chain runs will be traced automatically
+
+// Run your chain with tracing
+const result = await chain.call(
+  { question: "How does LangSmith help with LLM development?" },
+  {
+    callbacks: CallbackManager.fromHandlers({
+      handleChainEnd: (outputs, runId, parentRunId) => {
+        console.log(`Trace URL: https://smith.langchain.com/o/${process.env.LANGCHAIN_PROJECT}/runs/${runId}`);
+      },
+    }),
+  }
+);
+console.log(result);
+```
+
 ### 5. Create a Test Dataset
+
+#### Python
 
 ```python
 from langsmith import Client
@@ -98,6 +176,53 @@ except:
         outputs=[e[1] for e in examples],
         dataset_id=dataset.id
     )
+```
+
+#### TypeScript
+
+```typescript
+import { Client } from "langsmith";
+
+const client = new Client();
+
+const datasetName = "example-qa-dataset";
+
+async function setupDataset() {
+  let dataset;
+  try {
+    dataset = await client.readDataset({ datasetName });
+  } catch (e) {
+    // Create a new dataset if it doesn't exist
+    dataset = await client.createDataset(datasetName, {
+      description: "Example QA dataset for testing",
+    });
+    
+    // Add examples
+    const examples = [
+      [
+        { question: "What is LangSmith?" },
+        { answer: "LangSmith is a platform for developing and monitoring LLM applications." },
+      ],
+      [
+        { question: "How does tracing work?" },
+        { answer: "Tracing captures the execution of LLM calls and chains for debugging and analysis." },
+      ],
+    ];
+    
+    await client.createExamples({
+      inputs: examples.map(([input]) => input),
+      outputs: examples.map(([_, output]) => output),
+      datasetId: dataset.id,
+    });
+  }
+  return dataset;
+}
+
+// Run the setup
+setupDataset().then(dataset => {
+  console.log(`Dataset ready: ${dataset.name} (${dataset.id})`);
+});
+```
 ```
 
 ### 6. Run Evaluation

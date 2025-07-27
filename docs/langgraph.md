@@ -98,6 +98,29 @@ class SearchResult(BaseModel):
 class AgentState(TypedDict):
     # Messages accumulate in a thread
     messages: Annotated[List[Message], operator.add]
+```
+
+```typescript
+// TypeScript equivalent
+interface Message {
+  role: 'user' | 'assistant' | 'system' | 'function';
+  content: string;
+  timestamp?: Date;
+  metadata?: Record<string, any>;
+}
+
+interface SearchResult {
+  content: string;
+  source: string;
+  relevanceScore?: number;
+  metadata?: Record<string, any>;
+}
+
+interface AgentState {
+  messages: Message[];
+  // Other state properties can be added here
+}
+```
     # Current user query
     user_query: str
     # Results from search operations
