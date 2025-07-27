@@ -1,6 +1,6 @@
 # AgentArchitectureSection
 
-export const AgentArchitectureSection = () => {
+# const AgentArchitectureSection = () => {
   const supervisorCode = `from langgraph import StateGraph, START, END
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage

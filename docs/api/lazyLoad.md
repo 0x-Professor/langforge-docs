@@ -1,7 +1,7 @@
 # lazyLoad
 
 // Default loading component
-export function DefaultLoadingFallback() {
+# function DefaultLoadingFallback() {
   return (
     
       
@@ -38,7 +38,10 @@ Failed to load component. Please try again.
 }
 
 // Type for lazy loading options
-export interface LazyLoadOptions {
+# ### LazyLoadOptions
+
+```typescript
+interface LazyLoadOptions {
   loadingFallback?: ReactNode;
   errorFallback?: ReactNode;
   /**
@@ -47,6 +50,9 @@ export interface LazyLoadOptions {
    */
   delay?: number;
 }
+```
+
+**Properties:**
 
 /**
  * Higher-order component for lazy loading a component with loading and error states

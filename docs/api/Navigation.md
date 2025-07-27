@@ -1,5 +1,8 @@
 # Navigation
 
+### NavItem
+
+```typescript
 interface NavItem {
   id: string;
   title: string;
@@ -7,6 +10,10 @@ interface NavItem {
   badge?: string;
   children?: NavItem[];
 }
+```
+
+**Properties:**
+
 
 const navItems: NavItem[] = [
   {
@@ -79,10 +86,17 @@ const navItems: NavItem[] = [
   }
 ];
 
+### NavigationProps
+
+```typescript
 interface NavigationProps {
   activeSection: string;
   onSectionChange: (section: string) => void;
 }
+```
+
+**Properties:**
+
 
 const NavItemComponent = ({ item, activeSection, onSectionChange, level = 0 }: {
   item: NavItem;
@@ -128,7 +142,7 @@ const NavItemComponent = ({ item, activeSection, onSectionChange, level = 0 }: {
   );
 };
 
-export const Navigation = ({ activeSection, onSectionChange }: NavigationProps) => {
+# const Navigation = ({ activeSection, onSectionChange }: NavigationProps) => {
   const NavigationContent = () => (
     
       

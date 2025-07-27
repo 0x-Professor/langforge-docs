@@ -2,7 +2,7 @@
 
 const MOBILE_BREAKPOINT = 768
 
-export function useIsMobile() {
+# function useIsMobile() {
   const [isMobile, setIsMobile] = React.useState(undefined)
 
   React.useEffect(() => {

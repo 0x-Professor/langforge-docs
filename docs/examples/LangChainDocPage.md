@@ -1,5 +1,8 @@
 # LangChainDocPage
 
+### LangChainDocPageProps
+
+```typescript
 interface LangChainDocPageProps {
   /**
    * The title of the documentation page
@@ -40,7 +43,11 @@ interface LangChainDocPageProps {
     yarn?: string;
     pip?: string;
     conda?: string;
-  };
+  }
+```
+
+**Properties:**
+;
   
   /**
    * Links to related resources
@@ -63,7 +70,7 @@ interface LangChainDocPageProps {
  * A template for LangChain documentation pages
  * Provides consistent layout and styling for all documentation pages
  */
-export const LangChainDocPage = ({
+# const LangChainDocPage = ({
   title,
   description,
   contentPath,
@@ -257,7 +264,7 @@ API Reference
 };
 
 // Helper component for version badges
-export function VersionBadge({ version }: { version: string }) {
+# function VersionBadge({ version }: { version: string }) {
   return (
     
 v{version}
@@ -266,7 +273,7 @@ v{version}
 }
 
 // Helper component for experimental features
-export function ExperimentalBadge() {
+# function ExperimentalBadge() {
   return (
     
 Experimental
@@ -275,7 +282,7 @@ Experimental
 }
 
 // Helper component for beta features
-export function BetaBadge() {
+# function BetaBadge() {
   return (
     
 Beta
@@ -284,7 +291,7 @@ Beta
 }
 
 // Helper component for deprecation notices
-export function DeprecatedNotice({ since, message }: { since?: string; message?: string }) {
+# function DeprecatedNotice({ since, message }: { since?: string; message?: string }) {
   return (
     
 {message || 'This feature is no longer recommended for use and may be removed in a future version.'}
@@ -293,7 +300,7 @@ export function DeprecatedNotice({ since, message }: { since?: string; message?:
 }
 
 // Helper component for API reference links
-export function ApiReferenceLink({ href, children }: { href: string; children: React.ReactNode }) {
+# function ApiReferenceLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
     
       {children}

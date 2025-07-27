@@ -1,6 +1,6 @@
 # LangServeSection
 
-export const LangServeSection = () => {
+# const LangServeSection = () => {
   const basicSetupCode = `from fastapi import FastAPI
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate

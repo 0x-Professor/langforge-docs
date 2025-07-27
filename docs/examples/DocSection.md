@@ -1,6 +1,6 @@
 # DocSection
 
-export function DocSection({
+# function DocSection({
   id,
   title,
   description,
@@ -56,7 +56,7 @@ export function DocSection({
   );
 }
 
-export function FeatureCard({
+# function FeatureCard({
   title,
   description,
   icon,
@@ -121,7 +121,7 @@ about {title}
   return content;
 }
 
-export function QuickStart({
+# function QuickStart({
   title,
   description,
   steps,

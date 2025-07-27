@@ -13,7 +13,7 @@ interface CopyButtonProps extends ButtonProps {
   timeout?: number;
 }
 
-export function CopyButton({
+# function CopyButton({
   value,
   onCopy,
   copyText = 'Copy to clipboard',

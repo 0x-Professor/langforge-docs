@@ -17,7 +17,7 @@ interface CodeBlockProps extends React.HTMLAttributes {
   codeClassName?: string;
 }
 
-export function CodeBlock({
+# function CodeBlock({
   code,
   language = 'typescript',
   showLineNumbers = false,
@@ -58,7 +58,7 @@ interface CodeBlockWrapperProps extends React.HTMLAttributes {
   codeClassName?: string;
 }
 
-export function CodeBlockWrapper({
+# function CodeBlockWrapper({
   children,
   className,
   ...props

@@ -1,18 +1,30 @@
 # ErrorBoundary
 
+### ErrorBoundaryProps
+
+```typescript
 interface ErrorBoundaryProps {
   children: ReactNode;
   fallback?: ReactNode;
   onError?: (error: Error, errorInfo: ErrorInfo) => void;
   className?: string;
 }
+```
 
+**Properties:**
+
+### ErrorBoundaryState
+
+```typescript
 interface ErrorBoundaryState {
   hasError: boolean;
   error: Error | null;
 }
+```
 
-export class ErrorBoundary extends Component {
+**Properties:**
+
+# class ErrorBoundary extends Component {
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { 

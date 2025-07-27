@@ -1,6 +1,6 @@
 # LangSmithSection
 
-export const LangSmithSection = () => {
+# const LangSmithSection = () => {
   const setupCode = `import os
 from langsmith import Client
 from langchain_openai import ChatOpenAI

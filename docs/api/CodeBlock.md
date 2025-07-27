@@ -1,5 +1,8 @@
 # CodeBlock
 
+### CodeBlockProps
+
+```typescript
 interface CodeBlockProps {
   code: string;
   language?: string;
@@ -7,8 +10,12 @@ interface CodeBlockProps {
   showLineNumbers?: boolean;
   highlightLines?: number[];
 }
+```
 
-export const CodeBlock = ({ 
+**Properties:**
+
+
+# const CodeBlock = ({ 
   code, 
   language = 'python', 
   title, 
@@ -91,7 +98,7 @@ export const CodeBlock = ({
   );
 };
 
-export const InlineCode = ({ children }: { children: React.ReactNode }) => (
+# const InlineCode = ({ children }: { children: React.ReactNode }) => (
   
 {children}
 

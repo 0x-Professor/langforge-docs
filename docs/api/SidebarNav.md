@@ -55,7 +55,7 @@ const navItems: NavItem[] = [
   },
 ];
 
-export function SidebarNav() {
+# function SidebarNav() {
   const location = useLocation();
   const [expandedItems, setExpandedItems] = useState>({});
 

@@ -1,10 +1,16 @@
 # LangChainSection
 
+### LangChainSectionProps
+
+```typescript
 interface LangChainSectionProps {
   // Add any props if needed
 }
+```
 
-export const LangChainSection: React.FC = () => {
+**Properties:**
+
+# const LangChainSection: React.FC = () => {
   // Define the features for the models section
   const modelFeatures = [
     {

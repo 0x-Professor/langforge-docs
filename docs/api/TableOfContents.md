@@ -1,6 +1,6 @@
 # TableOfContents
 
-export function TableOfContents({ items }: { items: TableOfContentsItem[] }) {
+# function TableOfContents({ items }: { items: TableOfContentsItem[] }) {
   if (items.length === 0) {
     return (
       
@@ -65,7 +65,7 @@ No headings in this document
 }
 
 // Helper function to generate table of contents from markdown content
-export function generateToc(content: string): TableOfContentsItem[] {
+# function generateToc(content: string): TableOfContentsItem[] {
   const lines = content.split('\n');
   const headings: TableOfContentsItem[] = [];
   

@@ -1,6 +1,6 @@
 # MCPSection
 
-export const MCPSection = () => {
+# const MCPSection = () => {
   const serverCode = `from mcp import ServerSession, Resource, Tool
 import asyncio
 import json

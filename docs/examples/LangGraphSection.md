@@ -7,7 +7,7 @@
  * multi-actor applications with LLMs. It enables the creation of complex workflows,
  * autonomous agents, and multi-step reasoning systems.
  */
-export const LangGraphSection = () => {
+# const LangGraphSection = () => {
   // Basic agent example
   const basicAgentCode = `from typing import TypedDict, List, Annotated, Sequence
 from langgraph import StateGraph, START, END

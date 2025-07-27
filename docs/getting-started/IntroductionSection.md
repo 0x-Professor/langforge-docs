@@ -6,7 +6,7 @@
  * Provides an overview of the LangChain ecosystem and its core components.
  * This is the landing page that introduces users to the LangChain platform.
  */
-export const IntroductionSection = () => {
+# const IntroductionSection = () => {
   const installCode = `# Install LangChain core
 pip install langchain
 

@@ -1,6 +1,9 @@
 # DocPage
 
-export interface DocPageProps {
+# ### DocPageProps
+
+```typescript
+interface DocPageProps {
   title: string;
   description?: string;
   children: React.ReactNode;
@@ -11,8 +14,11 @@ export interface DocPageProps {
   toc?: Array;
   className?: string;
 }
+```
 
-export function DocPage({
+**Properties:**
+
+# function DocPage({
   title,
   description,
   children,

@@ -1,5 +1,8 @@
 # LoadingState
 
+### LoadingStateProps
+
+```typescript
 interface LoadingStateProps {
   isLoading: boolean;
   children?: React.ReactNode;
@@ -8,8 +11,11 @@ interface LoadingStateProps {
   text?: string;
   fullScreen?: boolean;
 }
+```
 
-export function LoadingState({
+**Properties:**
+
+# function LoadingState({
   isLoading,
   children,
   fallback,
@@ -39,6 +45,9 @@ export function LoadingState({
   );
 }
 
+### WithLoadingProps
+
+```typescript
 interface WithLoadingProps {
   data: T | null | undefined;
   isLoading: boolean;
@@ -49,8 +58,11 @@ interface WithLoadingProps {
   emptyFallback?: React.ReactNode;
   validateData?: (data: T) => boolean;
 }
+```
 
-export function WithLoading({
+**Properties:**
+
+# function WithLoading({
   data,
   isLoading,
   error,

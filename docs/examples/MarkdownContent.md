@@ -2,6 +2,9 @@
 
 import 'highlight.js/styles/github.css';
 
+### MarkdownContentProps
+
+```typescript
 interface MarkdownContentProps {
   content: string;
   
@@ -27,6 +30,9 @@ interface MarkdownContentProps {
    */
   components?: Record>;
 }
+```
+
+**Properties:**
 
 /**
  * A component that renders markdown content with syntax highlighting and custom styling
@@ -38,7 +44,7 @@ const defaultComponents = {
   // h1: ({ node, ...props }) => ,
 };
 
-export function MarkdownContent({
+# function MarkdownContent({
   content,
   className,
   allowHtml = false,

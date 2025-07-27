@@ -2,6 +2,9 @@
 
 'use client';
 
+### SearchResult
+
+```typescript
 interface SearchResult {
   id: string;
   title: string;
@@ -10,8 +13,11 @@ interface SearchResult {
   type: 'page' | 'section' | 'heading';
   level?: number;
 }
+```
 
-export function Search() {
+**Properties:**
+
+# function Search() {
   const router = useRouter();
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);

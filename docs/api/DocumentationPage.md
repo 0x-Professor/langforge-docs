@@ -8,6 +8,9 @@ const MarkdownContent = lazyLoad(
   }
 );
 
+### DocumentationPageProps
+
+```typescript
 interface DocumentationPageProps {
   /**
    * The title of the documentation page
@@ -53,6 +56,9 @@ interface DocumentationPageProps {
    */
   className?: string;
 }
+```
+
+**Properties:**
 
 /**
  * A reusable documentation page component that handles:
@@ -63,7 +69,7 @@ interface DocumentationPageProps {
  * - Markdown rendering
  * - Responsive layout
  */
-export function DocumentationPage({
+# function DocumentationPage({
   title,
   description,
   contentPath,
@@ -183,7 +189,7 @@ export function DocumentationPage({
  * @param config The configuration for the documentation page
  * @returns A pre-configured DocumentationPage component
  */
-export function createDocumentationPage(config: Omit) {
+# function createDocumentationPage(config: Omit) {
   return function ConfiguredDocumentationPage() {
     return ;
   };

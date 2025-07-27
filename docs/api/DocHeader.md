@@ -8,7 +8,7 @@ import {
   AlertOctagon 
 } from 'lucide-react';
 
-export function DocHeader({ title, description, tags = [] }: DocHeaderProps) {
+# function DocHeader({ title, description, tags = [] }: DocHeaderProps) {
   return (
     
       
@@ -35,7 +35,7 @@ export function DocHeader({ title, description, tags = [] }: DocHeaderProps) {
 }
 
 // Component for displaying version information
-export function VersionInfo({ version, date }: { version: string; date: string }) {
+# function VersionInfo({ version, date }: { version: string; date: string }) {
   return (
     
       
@@ -57,7 +57,7 @@ Version:
 }
 
 // Component for displaying related articles
-export function RelatedArticles({ items }: { items: { title: string; href: string }[] }) {
+# function RelatedArticles({ items }: { items: { title: string; href: string }[] }) {
   if (items.length === 0) return null;
   
   return (
@@ -79,7 +79,7 @@ RELATED ARTICLES
 }
 
 // Component for displaying a callout/note
-export function Callout({ 
+# function Callout({ 
   type = 'note', 
   title, 
   children 
