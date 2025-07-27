@@ -235,34 +235,242 @@ require('lspconfig').langserver.setup {
 }
 ```
 
+## Server Management
+
 ### Starting the Server
 
-#### Command Line
+#### Command Line Interface
 
 ```bash
-# Start the language server
+# Basic usage
 langserver start
 
-# Start with custom configuration
+# With custom configuration
 langserver start --config pyproject.toml
 
-# Start in development mode with debug logging
+# Development mode with debug logging
 LANG_SERVER_DEBUG=1 langserver start --log-level=debug
+
+# Custom host and port
+langserver start --host 0.0.0.0 --port 3000
+
+# Profile server performance
+langserver start --profile --profile-output profile.json
+
+# Check server status
+langserver status
+
+# Stop a running server
+langserver stop
+
+# View server logs
+tail -f .langserver/langserver.log
+```
+
+#### Running as a Daemon
+
+```bash
+# Install systemd service (Linux)
+sudo langserver install-service --user
+
+# Start the service
+systemctl --user start langserver
+
+# Enable on boot
+systemctl --user enable langserver
+
+# View logs
+journalctl --user -u langserver -f
 ```
 
 #### Programmatic Usage
 
 ```python
-from langserver import start_server
+from pathlib import Path
+from langserver import LanguageServer, ServerConfig
 
-# Start the server with custom configuration
-start_server(
+# Create a configuration
+config = ServerConfig(
     host="127.0.0.1",
     port=2087,
     log_level="info",
-    config_path="pyproject.toml"
+    config_path=Path("pyproject.toml"),
+    enable_completion=True,
+    enable_hover=True,
+    enable_diagnostics=True,
 )
+
+# Create and start the server
+server = LanguageServer("my-langserver", "1.0.0", config=config)
+
+# Register custom features
+@server.feature("textDocument/didOpen")
+async def on_did_open(ls, params):
+    """Handle document open event."""
+    doc = ls.workspace.get_document(params.text_document.uri)
+    ls.logger.info(f"Document opened: {doc.uri}")
+
+# Start the server
+if __name__ == "__main__":
+    server.start()
 ```
+
+## Editor Integration
+
+### VS Code
+
+1. Install the LangServer extension from the VS Code marketplace
+2. Add this to your VS Code settings (`settings.json`):
+
+```json
+{
+    "langserver.enable": true,
+    "langserver.path": "langserver",
+    "langserver.trace.server": "verbose",
+    "langserver.config": "${workspaceFolder}/pyproject.toml",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+        "source.organizeImports": true,
+        "source.fixAll": true
+    },
+    "[python]": {
+        "editor.defaultFormatter": "langserver.vscode-langserver",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": true
+        }
+    }
+}
+```
+
+### Neovim (0.5+)
+
+Using built-in LSP client:
+
+```lua
+local lspconfig = require('lspconfig')
+local configs = require('lspconfig.configs')
+
+-- Check if the config is already defined
+if not configs.langserver then
+  configs.langserver = {
+    default_config = {
+      cmd = {'langserver', 'start'};
+      filetypes = {'python', 'javascript', 'typescript', 'go', 'rust'};
+      root_dir = function(fname)
+        return lspconfig.util.root_pattern('pyproject.toml', '.git')(fname) or vim.loop.os_homedir()
+      end;
+      settings = {
+        langserver = {
+          python = {
+            analysis = {
+              typeCheckingMode = "basic",
+              autoSearchPaths = true,
+              useLibraryCodeForTypes = true
+            }
+          }
+        }
+      };
+    };
+  }
+end
+
+-- Setup language server
+lspconfig.langserver.setup{
+  on_attach = function(client, bufnr)
+    -- Mappings
+    local bufopts = { noremap=true, silent=true, buffer=bufnr }
+    vim.keymap.set('n', 'gD', vim.lsp.buf.declaration, bufopts)
+    vim.keymap.set('n', 'gd', vim.lsp.buf.definition, bufopts)
+    vim.keymap.set('n', 'K', vim.lsp.buf.hover, bufopts)
+    vim.keymap.set('n', 'gi', vim.lsp.buf.implementation, bufopts)
+    vim.keymap.set('n', '<C-k>', vim.lsp.buf.signature_help, bufopts)
+    vim.keymap.set('n', '<space>wa', vim.lsp.buf.add_workspace_folder, bufopts)
+    vim.keymap.set('n', '<space>wr', vim.lsp.buf.remove_workspace_folder, bufopts)
+    vim.keymap.set('n', '<space>wl', function()
+      print(vim.inspect(vim.lsp.buf.list_workspace_folders()))
+    end, bufopts)
+    vim.keymap.set('n', '<space>D', vim.lsp.buf.type_definition, bufopts)
+    vim.keymap.set('n', '<space>rn', vim.lsp.buf.rename, bufopts)
+    vim.keymap.set('n', '<space>ca', vim.lsp.buf.code_action, bufopts)
+    vim.keymap.set('n', 'gr', vim.lsp.buf.references, bufopts)
+    vim.keymap.set('n', '<space>f', function() vim.lsp.buf.format { async = true } end, bufopts)
+  end
+}
+```
+
+### Emacs (lsp-mode)
+
+```elisp
+(use-package lsp-mode
+  :ensure t
+  :hook ((python-mode . lsp)
+         (js-mode . lsp)
+         (typescript-mode . lsp)
+         (go-mode . lsp)
+         (rust-mode . lsp)
+         (lsp-mode . lsp-enable-which-key-integration))
+  :commands lsp
+  :custom
+  (lsp-lens-enable t)
+  (lsp-headerline-breadcrumb-enable t)
+  (lsp-modeline-diagnostics-enable t)
+  (lsp-prefer-flymake nil)  ; Use lsp-ui and flycheck
+  (lsp-enable-file-watchers t)
+  (lsp-enable-symbol-highlighting t)
+  (lsp-enable-indentation t)
+  (lsp-enable-on-type-formatting t)
+  (lsp-enable-snippet t)
+  (lsp-enable-folding t)
+  (lsp-enable-imenu t)
+  (lsp-enable-dap-auto-configure t)
+  (lsp-keep-workspace-alive nil)
+  (lsp-log-io nil)  ; Only for debugging
+  (lsp-auto-guess-root t)  ; Automatically find project root
+  (lsp-file-watch-threshold 2000)  ; Increase if needed for large projects
+
+  ;; LangServer specific settings
+  (lsp-langserver-python-command "langserver")
+  (lsp-langserver-python-args '("start"))
+  (lsp-langserver-configuration-sections '("python" "jedi" "pylsp"))
+  (lsp-langserver-configuration "python.analysis.typeCheckingMode" "basic")
+  (lsp-langserver-configuration "python.analysis.autoImportCompletions" t)
+  (lsp-langserver-configuration "python.analysis.autoSearchPaths" t)
+  (lsp-langserver-configuration "python.analysis.useLibraryCodeForTypes" t))
+
+;; Optional: Better UI
+(use-package lsp-ui
+  :ensure t
+  :after lsp-mode
+  :commands lsp-ui-mode
+  :custom
+  (lsp-ui-doc-enable t)
+  (lsp-ui-doc-header t)
+  (lsp-ui-doc-include-signature t)
+  (lsp-ui-doc-position 'at-point)
+  (lsp-ui-doc-max-width 100)
+  (lsp-ui-doc-max-height 30)
+  (lsp-ui-sideline-enable t)
+  (lsp-ui-sideline-show-hover t)
+  (lsp-ui-sideline-show-code-actions t)
+  (lsp-ui-sideline-show-diagnostics t)
+  (lsp-ui-sideline-ignore-duplicate t))
+
+;; Optional: Company mode for completions
+(use-package company-lsp
+  :ensure t
+  :after (lsp-mode company)
+  :commands company-lsp
+  :config
+  (push 'company-lsp company-backends))
+
+;; Optional: Debugging support
+(use-package dap-mode
+  :ensure t
+  :after lsp-mode
+  :config
+  (dap-mode t)
+  (dap-ui-mode t))
 
 ## Core Concepts
 
