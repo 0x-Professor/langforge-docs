@@ -55,74 +55,12 @@ LangChain is a powerful framework for developing applications powered by languag
 ## Core Concepts
 
 ### 1. Models
-LangChain provides a unified interface to interact with various language models, abstracting away provider-specific implementations.
 
-#### Model Types
-1. **Chat Models**
-   - Designed for conversational interactions
-   - Maintain conversation context
-   - Support system, user, and assistant messages
-   
-   ```python
-   from langchain.chat_models import ChatOpenAI
-   from langchain.schema import HumanMessage, SystemMessage
-   
-   chat = ChatOpenAI(temperature=0.7)
-   messages = [
-       SystemMessage(content="You are a helpful assistant that translates English to French."),
-       HumanMessage(content="Translate: I love programming.")
-   ]
-   print(chat(messages))
-   ```
+LangChain provides a unified interface to various language models. Here's how to use them:
 
-2. **Text Completion Models**
-   - Generate text based on a prompt
-   - Useful for content generation, summarization, etc.
-   
-   ```python
-   from langchain.llms import OpenAI
-   
-   llm = OpenAI(temperature=0.9)
-   response = llm("Write a haiku about artificial intelligence")
-   print(response)
-   ```
+### Basic Usage
 
-3. **Embedding Models**
-   - Convert text to vector representations
-   - Essential for semantic search and similarity comparisons
-   
-   ```python
-   from langchain.embeddings import OpenAIEmbeddings
-   
-   embeddings = OpenAIEmbeddings()
-   text = "This is a sample text for embedding"
-   vector = embeddings.embed_query(text)
-   print(f"Vector length: {len(vector)}")
-   ```
-
-#### Supported Providers
-- **OpenAI**: GPT-3.5, GPT-4, and embeddings
-- **Anthropic**: Claude models
-- **HuggingFace**: Open-source models
-- **Cohere**: Advanced language understanding
-- **Google**: PaLM models
-- **Custom**: Bring your own models
-
-#### Model Parameters
-- `temperature`: Controls randomness (0.0 to 1.0)
-- `max_tokens`: Maximum length of generated output
-- `top_p`: Nucleus sampling parameter
-- `frequency_penalty`: Reduce repetition
-- `presence_penalty`: Encourage model to talk about new topics
-
-#### Best Practices
-1. Always set appropriate temperature based on your use case
-2. Use chat models for conversational applications
-3. Implement proper error handling for API calls
-4. Consider rate limits and costs when selecting models
-5. Cache embeddings for frequently used text
-
-#### Real-world Example: Building a Q&A System
+#### Python
 ```python
 from langchain.llms import OpenAI
 from langchain.chains import RetrievalQA
@@ -176,6 +114,25 @@ print(formatted_prompt)
 # Output: Tell me a funny joke about chickens.
 ```
 
+```typescript
+// TypeScript equivalent
+import { PromptTemplate } from "langchain/prompts";
+
+// Basic template
+const template = "Tell me a {adjective} joke about {content}.";
+const prompt = new PromptTemplate({
+  template,
+  inputVariables: ["adjective", "content"],
+});
+
+const formattedPrompt = await prompt.format({
+  adjective: "funny",
+  content: "chickens",
+});
+console.log(formattedPrompt);
+// Output: Tell me a funny joke about chickens.
+```
+
 #### Chat Prompt Templates
 For chat models, use structured message templates:
 
@@ -200,6 +157,33 @@ messages = chat_prompt.format_messages(
     text="I love programming."
 )
 print(messages)
+```
+
+```typescript
+// TypeScript equivalent
+import {
+  ChatPromptTemplate,
+  SystemMessagePromptTemplate,
+  HumanMessagePromptTemplate,
+} from "langchain/prompts";
+
+const systemTemplate = "You are a helpful assistant that translates {input_language} to {output_language}.";
+const systemMessagePrompt = SystemMessagePromptTemplate.fromTemplate(systemTemplate);
+
+const humanTemplate = "{text}";
+const humanMessagePrompt = HumanMessagePromptTemplate.fromTemplate(humanTemplate);
+
+const chatPrompt = ChatPromptTemplate.fromMessages([
+  systemMessagePrompt,
+  humanMessagePrompt,
+]);
+
+const messages = await chatPrompt.formatMessages({
+  input_language: "English",
+  output_language: "French",
+  text: "I love programming.",
+});
+console.log(messages);
 ```
 
 #### Few-shot Prompting
@@ -227,13 +211,49 @@ example_prompt = PromptTemplate(
 few_shot_prompt = FewShotPromptTemplate(
     examples=examples,
     example_prompt=example_prompt,
-    prefix="Give the antonym of each input word",
+    prefix="Give the antonym of every input",
     suffix="Word: {input}\nAntonym:",
     input_variables=["input"],
     example_separator="\n\n"
 )
 
 print(few_shot_prompt.format(input="big"))
+```
+
+```typescript
+// TypeScript equivalent
+import {
+  FewShotPromptTemplate,
+  PromptTemplate,
+} from "langchain/prompts";
+
+const examples = [
+  { word: "happy", antonym: "sad" },
+  { word: "tall", antonym: "short" },
+];
+
+const exampleTemplate = `Word: {word}
+Antonym: {antonym}`;
+
+const examplePrompt = new PromptTemplate({
+  template: exampleTemplate,
+  inputVariables: ["word", "antonym"],
+});
+
+// Create few-shot prompt template
+const fewShotPrompt = new FewShotPromptTemplate({
+  examples,
+  examplePrompt,
+  prefix: "Give the antonym of every input",
+  suffix: "Word: {input}\nAntonym:",
+  inputVariables: ["input"],
+  exampleSeparator: "\n\n",
+});
+
+const formattedPrompt = await fewShotPrompt.format({
+  input: "big",
+});
+console.log(formattedPrompt);
 ```
 
 #### Output Parsers
@@ -270,6 +290,45 @@ output = model(prompt_value)
 parsed_output = output_parser.parse(output)
 print(parsed_output)
 # Output: {'answer': 'Paris', 'source': 'general knowledge'}
+```
+
+```typescript
+// TypeScript equivalent
+import { OpenAI } from "langchain/llms/openai";
+import { PromptTemplate } from "langchain/prompts";
+import { StructuredOutputParser } from "langchain/output_parsers";
+import { z } from "zod";
+
+// Define response schema using Zod
+const responseSchema = z.object({
+  answer: z.string().describe("answer to the user's question"),
+  source: z.string().describe("source used to answer the question"),
+});
+
+// Create output parser
+const outputParser = StructuredOutputParser.fromZodSchema(responseSchema);
+
+// Get format instructions
+const formatInstructions = outputParser.getFormatInstructions();
+
+// Create prompt with format instructions
+const prompt = new PromptTemplate({
+  template: `Answer the user's question.\n{formatInstructions}\n{question}`,
+  inputVariables: ["question"],
+  partialVariables: { formatInstructions },
+});
+
+// Query the model
+const model = new OpenAI({ temperature: 0 });
+const promptValue = await prompt.format({
+  question: "What is the capital of France?",
+});
+const output = await model.call(promptValue);
+
+// Parse the output
+const parsedOutput = await outputParser.parse(output);
+console.log(parsedOutput);
+// Output: { answer: 'Paris', source: 'general knowledge' }
 ```
 
 #### Best Practices for Prompt Engineering
