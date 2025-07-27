@@ -1706,6 +1706,66 @@ for doc in result["source_documents"]:
     print(f"- {doc.metadata['source']}, page {doc.metadata.get('page', 'N/A')}")
 ```
 
+```typescript
+// TypeScript equivalent
+import { OpenAI } from "langchain/llms/openai";
+import { TextLoader } from "langchain/document_loaders/fs/text";
+import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
+import { OpenAIEmbeddings } from "langchain/embeddings/openai";
+import { FAISS } from "langchain/vectorstores/faiss";
+import { RetrievalQAChain } from "langchain/chains";
+import { Document } from "langchain/document";
+
+async function setupDocumentQA() {
+  // 1. Load and process documents
+  const loader = new TextLoader("state_of_the_union.txt");
+  const docs = await loader.load();
+
+  // 2. Split documents
+  const textSplitter = new RecursiveCharacterTextSplitter({
+    chunkSize: 1000,
+    chunkOverlap: 200,
+  });
+  const texts = await textSplitter.splitDocuments(docs);
+
+  // 3. Create vector store
+  const embeddings = new OpenAIEmbeddings();
+  const vectorStore = await FAISS.fromDocuments(texts, embeddings);
+
+  // 4. Create retriever
+  const retriever = vectorStore.asRetriever({
+    searchType: "mmr",
+    searchKwargs: { k: 3 },
+  });
+
+  // 5. Create QA chain
+  const model = new OpenAI({ temperature: 0 });
+  const qa = RetrievalQAChain.fromLLM(model, retriever, {
+    returnSourceDocuments: true,
+  });
+
+  // 6. Query the system
+  const query = "What did the president say about the Supreme Court?";
+  const result = await qa.call({ query });
+  
+  console.log(result.text);
+  console.log("\nSources:");
+  
+  if (result.sourceDocuments) {
+    result.sourceDocuments.forEach((doc: Document) => {
+      console.log(
+        `- ${doc.metadata.source}, page ${doc.metadata.page || 'N/A'}`
+      );
+    });
+  }
+  
+  return result;
+}
+
+// Example usage
+setupDocumentQA().catch(console.error);
+```
+
 #### Best Practices for Working with Indexes
 
 1. **Document Processing**
@@ -1855,6 +1915,44 @@ Agents in LangChain are systems that use a language model to determine a sequenc
    agent.run("What was the high temperature in SF yesterday in Fahrenheit? What is that number raised to the .023 power?")
    ```
 
+   ```typescript
+   // TypeScript equivalent
+   import { initializeAgentExecutorWithOptions } from "langchain/agents";
+   import { OpenAI } from "langchain/llms/openai";
+   import { SerpAPI } from "langchain/tools";
+   import { Calculator } from "langchain/tools/calculator";
+
+   async function runZeroShotAgent() {
+     // Initialize the language model
+     const model = new OpenAI({ temperature: 0 });
+     
+     // Load tools
+     const tools = [
+       new SerpAPI(process.env.SERPAPI_API_KEY, {
+         location: "San Francisco,California,United States",
+         hl: "en",
+         gl: "us",
+       }),
+       new Calculator(),
+     ];
+     
+     // Initialize the agent
+     const executor = await initializeAgentExecutorWithOptions(tools, model, {
+       agentType: "zero-shot-react-description",
+       verbose: true,
+     });
+     
+     // Run the agent
+     const input = "What was the high temperature in SF yesterday in Fahrenheit? What is that number raised to the .023 power?";
+     const result = await executor.call({ input });
+     
+     console.log(result.output);
+     return result;
+   }
+   
+   runZeroShotAgent().catch(console.error);
+   ```
+
 2. **Plan-and-Execute Agent**
    First plans what to do, then executes the sub-tasks.
    
@@ -1873,6 +1971,48 @@ Agents in LangChain are systems that use a language model to determine a sequenc
    )
    
    agent.run("Who is Leo DiCaprio's girlfriend? What is her current age raised to the 0.43 power?")
+   ```
+
+   ```typescript
+   // TypeScript equivalent
+   import { initializeAgentExecutorWithOptions } from "langchain/agents";
+   import { OpenAI } from "langchain/llms/openai";
+   import { SerpAPI } from "langchain/tools";
+   import { Calculator } from "langchain/tools/calculator";
+   import { PlanAndExecuteAgentExecutor } from "langchain/experimental/plan_and_execute";
+   import { loadPlanner } from "langchain/experimental/planners";
+   import { loadPlannerTools } from "langchain/experimental/planners";
+
+   async function runPlanAndExecuteAgent() {
+     // Initialize the language model
+     const model = new OpenAI({ temperature: 0 });
+     
+     // Load tools
+     const tools = [
+       new SerpAPI(process.env.SERPAPI_API_KEY, {
+         location: "United States",
+         hl: "en",
+         gl: "us",
+       }),
+       new Calculator(),
+     ];
+     
+     // Create the executor
+     const executor = await PlanAndExecuteAgentExecutor.fromLLMAndTools({
+       llm: model,
+       tools,
+       verbose: true,
+     });
+     
+     // Run the agent
+     const input = "Who is Leo DiCaprio's girlfriend? What is her current age raised to the 0.43 power?";
+     const result = await executor.call({ input });
+     
+     console.log(result.output);
+     return result;
+   }
+   
+   runPlanAndExecuteAgent().catch(console.error);
    ```
 
 3. **Self-ask with Search**
@@ -1895,6 +2035,50 @@ Agents in LangChain are systems that use a language model to determine a sequenc
    agent.run("What is the hometown of the reigning men's U.S. Open champion?")
    ```
 
+   ```typescript
+   // TypeScript equivalent
+   import { initializeAgentExecutorWithOptions } from "langchain/agents";
+   import { OpenAI } from "langchain/llms/openai";
+   import { SelfAskWithSearchTool } from "langchain/tools/self_ask_with_search";
+   import { SerpAPI } from "langchain/tools";
+
+   async function runSelfAskWithSearch() {
+     // Initialize the language model
+     const model = new OpenAI({ temperature: 0 });
+     
+     // Initialize the search tool
+     const searchTool = new SerpAPI(process.env.SERPAPI_API_KEY, {
+       location: "United States",
+       hl: "en",
+       gl: "us",
+     });
+     
+     // Create the self-ask with search tool
+     const tools = [
+       new SelfAskWithSearchTool({
+         name: "search",
+         description: "A search tool for finding information.",
+         search: searchTool,
+       })
+     ];
+     
+     // Initialize the agent
+     const executor = await initializeAgentExecutorWithOptions(tools, model, {
+       agentType: "self-ask-with-search",
+       verbose: true,
+     });
+     
+     // Run the agent
+     const input = "What is the hometown of the reigning men's U.S. Open champion?";
+     const result = await executor.call({ input });
+     
+     console.log(result.output);
+     return result;
+   }
+   
+   runSelfAskWithSearch().catch(console.error);
+   ```
+
 #### Custom Tools
 
 Create your own tools for the agent to use:
@@ -1915,7 +2099,7 @@ class CircumferenceTool(BaseTool):
         raise NotImplementedError("This tool does not support async")
 
 # Initialize the agent with custom tool
-from langchain.agents import initialize_agent
+from langchain.agents import initialize_agent, AgentType
 from langchain.llms import OpenAI
 
 llm = OpenAI(temperature=0)
@@ -1927,6 +2111,51 @@ agent = initialize_agent(
 )
 
 agent.run("What is the circumference of a circle with a radius of 7.5?")
+```
+
+```typescript
+// TypeScript equivalent
+import { Tool } from "langchain/tools";
+import { initializeAgentExecutorWithOptions } from "langchain/agents";
+import { OpenAI } from "langchain/llms/openai";
+
+// Define the custom tool
+class CircumferenceTool extends Tool {
+  name = "circumference_calculator";
+  description = "Use this tool when you need to calculate a circumference using the radius of a circle.";
+  
+  async _call(radius: string): Promise<string> {
+    const radiusNum = parseFloat(radius);
+    if (isNaN(radiusNum)) {
+      throw new Error("Radius must be a number");
+    }
+    const circumference = radiusNum * 2 * Math.PI;
+    return circumference.toString();
+  }
+}
+
+async function runAgentWithCustomTool() {
+  // Initialize the language model
+  const model = new OpenAI({ temperature: 0 });
+  
+  // Create an instance of our custom tool
+  const tools = [new CircumferenceTool()];
+  
+  // Initialize the agent
+  const executor = await initializeAgentExecutorWithOptions(tools, model, {
+    agentType: "zero-shot-react-description",
+    verbose: true,
+  });
+  
+  // Run the agent
+  const input = "What is the circumference of a circle with a radius of 7.5?";
+  const result = await executor.call({ input });
+  
+  console.log(result.output);
+  return result;
+}
+
+runAgentWithCustomTool().catch(console.error);
 ```
 
 #### Toolkits
@@ -1947,17 +2176,140 @@ agent = create_python_agent(
 agent.run("What is the 10th fibonacci number?")
 ```
 
+```typescript
+// TypeScript equivalent
+import { createPythonAgent } from "langchain/agents/agent_toolkits";
+import { PythonREPLTool } from "langchain/tools/python";
+import { OpenAI } from "langchain/llms/openai";
+
+async function runPythonAgent() {
+  // Initialize the Python REPL tool
+  const pythonTool = new PythonREPLTool();
+  
+  // Initialize the language model
+  const model = new OpenAI({ 
+    temperature: 0, 
+    maxTokens: 1000,
+  });
+  
+  // Create the Python agent
+  const agent = await createPythonAgent({
+    llm: model,
+    tool: pythonTool,
+    verbose: true,
+  });
+  
+  // Run the agent
+  const result = await agent.call({
+    input: "What is the 10th fibonacci number?",
+  });
+  
+  console.log(result.output);
+  return result;
+}
+
+runPythonAgent().catch(console.error);
+```
+
 #### Multi-Agent Systems
 
 Create multiple agents that can work together:
 
 ```python
-from langchain.agents import Tool
-from langchain.agents import AgentExecutor, create_sql_agent
+from langchain.agents import Tool, AgentExecutor, create_sql_agent
 from langchain.agents.agent_toolkits import create_conversational_retrieval_agent
 from langchain.llms import OpenAI
 from langchain.utilities import GoogleSearchAPIWrapper
+```
 
+```typescript
+// TypeScript equivalent
+import { Tool } from "langchain/tools";
+import { AgentExecutor } from "langchain/agents";
+import { createSqlAgent } from "langchain/agents/agent_toolkits/sql";
+import { createConversationalRetrievalAgent } from "langchain/agents/agent_toolkits/conversational_retrieval";
+import { OpenAI } from "langchain/llms/openai";
+import { GoogleCustomSearch } from "langchain/tools";
+
+// Example of creating a multi-agent system in TypeScript
+async function setupMultiAgentSystem() {
+  // Initialize the language model
+  const model = new OpenAI({ temperature: 0 });
+  
+  // Create a search tool
+  const search = new GoogleCustomSearch({
+    apiKey: process.env.GOOGLE_API_KEY!,
+    googleCSEId: process.env.GOOGLE_CSE_ID!,
+  });
+  
+  // Create SQL agent
+  const sqlAgent = await createSqlAgent({
+    llm: model,
+    db: yourDatabaseInstance, // You'll need to set this up with your database
+    agentType: "openai-tools",
+  });
+  
+  // Create a retrieval agent
+  const retrievalAgent = await createConversationalRetrievalAgent({
+    llm: model,
+    retriever: yourRetriever, // You'll need to set this up with your retriever
+  });
+  
+  // Create a coordinator agent to manage the other agents
+  const tools = [
+    new Tool({
+      name: "search",
+      description: "Search the web for information.",
+      func: search.call,
+    }),
+    new Tool({
+      name: "sql_agent",
+      description: "Execute SQL queries and get database information.",
+      func: async (input: string) => {
+        const result = await sqlAgent.call({ input });
+        return result.output;
+      },
+    }),
+    new Tool({
+      name: "retrieval_agent",
+      description: "Answer questions using retrieved documents.",
+      func: async (input: string) => {
+        const result = await retrievalAgent.call({ input });
+        return result.output;
+      },
+    }),
+  ];
+  
+  // Create the coordinator agent
+  const coordinator = await initializeAgentExecutorWithOptions(tools, model, {
+    agentType: "openai-functions",
+    verbose: true,
+  });
+  
+  // Example of using the multi-agent system
+  async function queryMultiAgentSystem(question: string) {
+    const result = await coordinator.call({ input: question });
+    console.log("Final Answer:", result.output);
+    return result;
+  }
+  
+  return {
+    query: queryMultiAgentSystem,
+  };
+}
+
+// Example usage
+async function exampleUsage() {
+  const system = await setupMultiAgentSystem();
+  
+  // The coordinator will decide which agent to use based on the question
+  await system.query("What are the latest AI research papers?"); // Uses search
+  await system.query("How many users do we have in our database?"); // Uses SQL agent
+  await system.query("Tell me about our company policies."); // Uses retrieval agent
+}
+
+exampleUsage().catch(console.error);
+```
 # Create a search tool
 search = GoogleSearchAPIWrapper()
 tools = [
@@ -2002,6 +2354,194 @@ print(article)
    - Choose the right agent type for your task
    - Set appropriate temperature (lower for more focused tasks)
    - Limit the number of steps to prevent excessive API usage
+
+#### Agent Memory
+
+Add memory to your agents to maintain context across interactions:
+
+```python
+from langchain.agents import AgentExecutor, Tool, initialize_agent
+from langchain.memory import ConversationBufferMemory
+from langchain.llms import OpenAI
+
+# Initialize the language model
+llm = OpenAI(temperature=0)
+
+# Create a simple tool
+tools = [
+    Tool(
+        name="GetWordLength",
+        func=lambda x: str(len(x)),
+        description="Returns the length of the input string."
+    )
+]
+
+# Initialize memory
+memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+
+# Create the agent with memory
+agent = initialize_agent(
+    tools, 
+    llm, 
+    agent=AgentType.CONVERSATIONAL_REACT_DESCRIPTION, 
+    verbose=True,
+    memory=memory,
+    max_iterations=3
+)
+
+# Use the agent
+agent.run("Remember my name is John")
+agent.run("What is my name?")
+```
+
+```typescript
+// TypeScript equivalent
+import { initializeAgentExecutorWithOptions } from "langchain/agents";
+import { OpenAI } from "langchain/llms/openai";
+import { Tool } from "langchain/tools";
+import { BufferMemory } from "langchain/memory";
+
+async function setupAgentWithMemory() {
+  // Initialize the language model
+  const model = new OpenAI({ temperature: 0 });
+  
+  // Create a simple tool
+  const tools = [
+    new Tool({
+      name: "GetWordLength",
+      description: "Returns the length of the input string.",
+      func: async (input: string) => input.length.toString(),
+    }),
+  ];
+  
+  // Initialize memory
+  const memory = new BufferMemory({
+    memoryKey: "chat_history",
+    returnMessages: true,
+  });
+  
+  // Create the agent with memory
+  const executor = await initializeAgentExecutorWithOptions(tools, model, {
+    agentType: "conversational-react-description",
+    verbose: true,
+    memory,
+    maxIterations: 3,
+  });
+  
+  // Use the agent
+  await executor.call({ input: "Remember my name is John" });
+  const result = await executor.call({ input: "What is my name?" });
+  
+  console.log(result.output);
+  return result;
+}
+
+setupAgentWithMemory().catch(console.error);
+```
+
+#### Error Handling in Agents
+
+Implement robust error handling for your agents:
+
+```python
+from typing import Any, Dict, List, Optional, Type, Union
+from langchain.agents import AgentExecutor, BaseSingleActionAgent, Tool
+from langchain.schema import AgentAction, AgentFinish
+from langchain.callbacks.manager import CallbackManagerForChainRun
+from langchain.llms import OpenAI
+
+class SafeAgentExecutor(AgentExecutor):
+    """Custom agent executor with enhanced error handling."""
+    
+    def _call(self, inputs: Dict[str, str], **kwargs) -> Dict[str, Any]:
+        try:
+            return super()._call(inputs, **kwargs)
+        except Exception as e:
+            return {
+                "output": f"An error occurred: {str(e)}",
+                "intermediate_steps": [],
+            }
+
+# Usage
+llm = OpenAI(temperature=0)
+tools = [
+    Tool(
+        name="DangerousOperation",
+        func=lambda x: 1/0,  # This will cause a division by zero
+        description="A tool that might fail"
+    )
+]
+
+agent = SafeAgentExecutor.from_agent_and_tools(
+    agent=initialize_agent(tools, llm, agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION),
+    tools=tools,
+    verbose=True
+)
+
+result = agent.run("Try to divide by zero")
+print(result)  # Will handle the error gracefully
+```
+
+```typescript
+// TypeScript equivalent
+import { AgentExecutor, Tool } from "langchain/agents";
+import { initializeAgentExecutorWithOptions } from "langchain/agents";
+import { OpenAI } from "langchain/llms/openai";
+
+class SafeAgentExecutor extends AgentExecutor {
+  async call(
+    input: string | Record<string, unknown>,
+    callbacks?: any[]
+  ): Promise<Record<string, any>> {
+    try {
+      return await super.call(input, callbacks);
+    } catch (error) {
+      console.error("Agent execution failed:", error);
+      return {
+        output: `An error occurred: ${error instanceof Error ? error.message : String(error)}`,
+        intermediateSteps: [],
+      };
+    }
+  }
+}
+
+async function setupSafeAgent() {
+  // Initialize the language model
+  const model = new OpenAI({ temperature: 0 });
+  
+  // Create a tool that might fail
+  const tools = [
+    new Tool({
+      name: "DangerousOperation",
+      description: "A tool that might fail",
+      func: async () => {
+        // This will throw an error
+        const result = 1 / 0;
+        return result.toString();
+      },
+    }),
+  ];
+  
+  // Create the base agent
+  const baseAgent = await initializeAgentExecutorWithOptions(tools, model, {
+    agentType: "zero-shot-react-description",
+    verbose: true,
+  });
+  
+  // Create the safe executor
+  const agent = new SafeAgentExecutor({
+    ...baseAgent,
+    tools,
+  });
+  
+  // Use the agent
+  const result = await agent.call("Try to divide by zero");
+  console.log(result.output); // Will handle the error gracefully
+  return result;
+}
+
+setupSafeAgent().catch(console.error);
+```
 
 3. **Error Handling**
    - Implement proper error handling in tools
@@ -2059,6 +2599,110 @@ tools = [
         description="Useful for searching the web"
     )
 ]
+```
+
+```typescript
+// TypeScript equivalent
+import { 
+  Tool, 
+  BaseSingleActionAgent, 
+  AgentAction, 
+  AgentFinish, 
+  AgentStep 
+} from "langchain/agents";
+import { OpenAI } from "langchain/llms/openai";
+import { SerpAPI } from "langchain/tools";
+import { BufferMemory } from "langchain/memory";
+
+type AgentStepResult = [AgentAction, string];
+
+class CustomAgent extends BaseSingleActionAgent {
+  get inputKeys(): string[] {
+    return ["input"];
+  }
+
+  async plan(
+    steps: AgentStep[],
+    inputs: Record<string, any>,
+    callbackManager?: any
+  ): Promise<AgentAction | AgentFinish> {
+    // Convert steps to the format expected by the Python implementation
+    const intermediateSteps: AgentStepResult[] = steps.map(step => [
+      step.action,
+      step.observation,
+    ]) as AgentStepResult[];
+
+    // Implement the same logic as the Python version
+    if (intermediateSteps.length === 0) {
+      // First step
+      return {
+        tool: "Search",
+        toolInput: { query: inputs.input },
+        log: "",
+      };
+    } else {
+      // We've already taken the first step, so we're done
+      return {
+        returnValues: {
+          output: intermediateSteps[0][1],
+        },
+        log: intermediateSteps[0][1],
+      };
+    }
+  }
+
+  // TypeScript doesn't have a direct equivalent to Python's @property
+  // So we implement it as a method
+  getInputKeys(): string[] {
+    return this.inputKeys;
+  }
+}
+
+// Set up the tools
+const search = new SerpAPI(process.env.SERPAPI_API_KEY);
+const tools = [
+  new Tool({
+    name: "Search",
+    description: "Useful for searching the web",
+    func: async (input: string) => {
+      return await search.call(input);
+    },
+  }),
+];
+
+// Create the agent with memory
+const memory = new BufferMemory({
+  memoryKey: "chat_history",
+  returnMessages: true,
+});
+
+// Usage example
+async function runCustomAgent() {
+  // Initialize the language model
+  const model = new OpenAI({ temperature: 0 });
+  
+  // Create the custom agent
+  const agent = new CustomAgent();
+  
+  // Create the agent executor
+  const executor = new AgentExecutor({
+    agent,
+    tools,
+    memory,
+    verbose: true,
+  });
+  
+  // Run the agent
+  const result = await executor.call({
+    input: "What's the weather in San Francisco?",
+  });
+  
+  console.log("Agent result:", result);
+  return result;
+}
+
+runCustomAgent().catch(console.error);
+```
 
 # Initialize the agent
 agent = CustomAgent()
