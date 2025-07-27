@@ -608,52 +608,154 @@ client.onDidChangeState((event) => {
 
 ### VS Code
 
+#### Using the Official Extension
+
 1. Install the LangServer extension from the VS Code marketplace
 2. Add this to your VS Code settings (`settings.json`):
 
 ```json
 {
-    "langserver.enable": true,
-    "langserver.path": "langserver",
-    "langserver.trace.server": "verbose",
-    "langserver.config": "${workspaceFolder}/pyproject.toml",
+  // Core settings
+  "langserver.enable": true,
+  "langserver.path": "langserver",
+  "langserver.trace.server": "verbose",
+  
+  // Use appropriate config file based on project type
+  "langserver.config": "${workspaceFolder}/langserver.config.js",
+  
+  // General editor settings
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": true,
+    "source.fixAll": true
+  },
+  
+  // Language-specific settings
+  "[typescript]": {
+    "editor.defaultFormatter": "langserver.vscode-langserver",
     "editor.formatOnSave": true,
     "editor.codeActionsOnSave": {
-        "source.organizeImports": true,
-        "source.fixAll": true
-    },
-    "[python]": {
-        "editor.defaultFormatter": "langserver.vscode-langserver",
-        "editor.formatOnSave": true,
-        "editor.codeActionsOnSave": {
-            "source.organizeImports": true
-        }
+      "source.organizeImports": true,
+      "source.fixAll.eslint": true
     }
+  },
+  
+  "[javascript]": {
+    "editor.defaultFormatter": "langserver.vscode-langserver",
+    "editor.formatOnSave": true
+  },
+  
+  "[python]": {
+    "editor.defaultFormatter": "langserver.vscode-langserver",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": true
+    }
+  }
+}
+```
+
+#### Creating a Custom Extension
+
+Create a VS Code extension that integrates with LangServer:
+
+```typescript
+// extension.ts
+import * as vscode from 'vscode';
+import { LanguageClient, LanguageClientOptions, ServerOptions } from 'vscode-languageclient/node';
+
+export function activate(context: vscode.ExtensionContext) {
+  // Server options
+  const serverOptions: ServerOptions = {
+    command: 'langserver',
+    args: ['start', '--config', '${workspaceFolder}/langserver.config.js'],
+    options: {
+      env: { ...process.env, NODE_ENV: 'development' }
+    }
+  };
+
+  // Client options
+  const clientOptions: LanguageClientOptions = {
+    documentSelector: [
+      { scheme: 'file', language: 'typescript' },
+      { scheme: 'file', language: 'javascript' },
+      { scheme: 'file', language: 'python' },
+    ],
+    synchronize: {
+      fileEvents: [
+        vscode.workspace.createFileSystemWatcher('**/*.{ts,tsx,js,jsx,py}'),
+        vscode.workspace.createFileSystemWatcher('**/tsconfig.json'),
+        vscode.workspace.createFileSystemWatcher('**/package.json'),
+      ]
+    }
+  };
+
+  // Create the language client
+  const client = new LanguageClient(
+    'langserver',
+    'LangServer',
+    serverOptions,
+    clientOptions
+  );
+
+  // Start the client
+  client.start();
+
+  // Register commands
+  context.subscriptions.push(
+    vscode.commands.registerCommand('langserver.restart', () => {
+      client.stop().then(() => client.start());
+    })
+  );
+}
+
+export function deactivate(): Thenable<void> | undefined {
+  return client?.stop();
 }
 ```
 
 ### Neovim (0.5+)
 
-Using built-in LSP client:
+#### Using built-in LSP
 
 ```lua
+-- init.lua
 local lspconfig = require('lspconfig')
 local configs = require('lspconfig.configs')
 
--- Check if the config is already defined
+-- Define custom commands for LangServer
+vim.api.nvim_create_user_command('LangServerRestart', function()
+  vim.lsp.stop_client(vim.lsp.get_active_clients({ name = 'langserver' }))
+  vim.cmd('edit')
+end, {})
+
+-- Configure LangServer
 if not configs.langserver then
   configs.langserver = {
     default_config = {
-      cmd = {'langserver', 'start'};
-      filetypes = {'python', 'javascript', 'typescript', 'go', 'rust'};
+      cmd = { 'langserver', 'start' };
+      filetypes = { 'typescript', 'javascript', 'python', 'lua' };
       root_dir = function(fname)
-        return lspconfig.util.root_pattern('pyproject.toml', '.git')(fname) or vim.loop.os_homedir()
+        return lspconfig.util.root_pattern(
+          'package.json',
+          'tsconfig.json',
+          'jsconfig.json',
+          'pyproject.toml',
+          '.git'
+        )(fname) or vim.loop.os_homedir()
       end;
       settings = {
         langserver = {
+          typescript = {
+            inlayHints = {
+              includeInlayParameterNameHints = 'all',
+              includeInlayFunctionParameterTypeHints = true,
+              includeInlayVariableTypeHints = true
+            }
+          },
           python = {
             analysis = {
-              typeCheckingMode = "basic",
+              typeCheckingMode = 'basic',
               autoSearchPaths = true,
               useLibraryCodeForTypes = true
             }
@@ -664,102 +766,199 @@ if not configs.langserver then
   }
 end
 
--- Setup language server
-lspconfig.langserver.setup{
+-- Setup language server with keybindings
+lspconfig.langserver.setup {
   on_attach = function(client, bufnr)
+    -- Enable completion triggered by <c-x><c-o>
+    vim.api.nvim_buf_set_option(bufnr, 'omnifunc', 'v:lua.vim.lsp.omnifunc')
+
     -- Mappings
-    local bufopts = { noremap=true, silent=true, buffer=bufnr }
+    local bufopts = { noremap = true, silent = true, buffer = bufnr }
+    
+    -- Navigation
     vim.keymap.set('n', 'gD', vim.lsp.buf.declaration, bufopts)
     vim.keymap.set('n', 'gd', vim.lsp.buf.definition, bufopts)
-    vim.keymap.set('n', 'K', vim.lsp.buf.hover, bufopts)
     vim.keymap.set('n', 'gi', vim.lsp.buf.implementation, bufopts)
-    vim.keymap.set('n', '<C-k>', vim.lsp.buf.signature_help, bufopts)
+    vim.keymap.set('n', 'gr', vim.lsp.buf.references, bufopts)
+    vim.keymap.set('n', 'K', vim.lsp.buf.hover, bufopts)
+    
+    -- Code actions
+    vim.keymap.set('n', '<space>ca', vim.lsp.buf.code_action, bufopts)
+    vim.keymap.set('n', '<space>rn', vim.lsp.buf.rename, bufopts)
+    vim.keymap.set('n', '<space>f', function() vim.lsp.buf.format { async = true } end, bufopts)
+    
+    -- Workspace
     vim.keymap.set('n', '<space>wa', vim.lsp.buf.add_workspace_folder, bufopts)
     vim.keymap.set('n', '<space>wr', vim.lsp.buf.remove_workspace_folder, bufopts)
     vim.keymap.set('n', '<space>wl', function()
       print(vim.inspect(vim.lsp.buf.list_workspace_folders()))
     end, bufopts)
+    
+    -- Signature help
+    vim.keymap.set('i', '<C-k>', vim.lsp.buf.signature_help, bufopts)
+    
+    -- Type definition
     vim.keymap.set('n', '<space>D', vim.lsp.buf.type_definition, bufopts)
-    vim.keymap.set('n', '<space>rn', vim.lsp.buf.rename, bufopts)
-    vim.keymap.set('n', '<space>ca', vim.lsp.buf.code_action, bufopts)
-    vim.keymap.set('n', 'gr', vim.lsp.buf.references, bufopts)
-    vim.keymap.set('n', '<space>f', function() vim.lsp.buf.format { async = true } end, bufopts)
+    
+    -- Format on save
+    vim.api.nvim_create_autocmd('BufWritePre', {
+      pattern = '*.{ts,tsx,js,jsx,py}',
+      callback = function() vim.lsp.buf.format() end
+    })
   end
 }
 ```
 
-### Emacs (lsp-mode)
+### Sublime Text
+
+Using LSP package:
+
+```json
+// LSP.sublime-settings
+{
+  "clients": {
+    "langserver": {
+      "enabled": true,
+      "command": ["langserver", "start"],
+      "env": {
+        "NODE_ENV": "development"
+      },
+      "selector": "source.ts, source.tsx, source.js, source.jsx, source.py",
+      "settings": {
+        "langserver": {
+          "typescript": {
+            "inlayHints": {
+              "includeInlayParameterNameHints": "all"
+            }
+          },
+          "python": {
+            "analysis": {
+              "typeCheckingMode": "basic"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+### WebStorm/IntelliJ IDEA
+
+1. Install the LangServer plugin from JetBrains Marketplace
+2. Configure the plugin in `Settings > Languages & Frameworks > LangServer`
+3. Set the path to the LangServer executable
+4. Configure file types and settings:
+
+```xml
+<!-- langserver.xml -->
+<component name="LangServerSettings">
+  <option name="enabled">true</option>
+  <option name="nodePath">/usr/local/bin/node</option>
+  <option name="langServerPath">/usr/local/bin/langserver</option>
+  <option name="configuration">
+    <map>
+      <entry key="langserver.typescript.inlayHints.includeInlayParameterNameHints" value="all" />
+      <entry key="langserver.python.analysis.typeCheckingMode" value="basic" />
+    </map>
+  </option>
+  <file-types>
+    <file-type>TypeScript</file-type>
+    <file-type>JavaScript</file-type>
+    <file-type>Python</file-type>
+  </file-types>
+</component>
+```
+
+### Emacs (lsp-mode with TypeScript support)
 
 ```elisp
+;; Initialize package manager
+(require 'package)
+(add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
+(package-initialize)
+
+;; Install required packages
+(dolist (pkg '(use-package lsp-mode lsp-ui company-lsp flycheck))
+  (unless (package-installed-p pkg)
+    (package-refresh-contents)
+    (package-install pkg)))
+
+;; Configure lsp-mode
 (use-package lsp-mode
   :ensure t
-  :hook ((python-mode . lsp)
-         (js-mode . lsp)
-         (typescript-mode . lsp)
-         (go-mode . lsp)
-         (rust-mode . lsp)
-         (lsp-mode . lsp-enable-which-key-integration))
   :commands lsp
-  :custom
-  (lsp-lens-enable t)
-  (lsp-headerline-breadcrumb-enable t)
-  (lsp-modeline-diagnostics-enable t)
-  (lsp-prefer-flymake nil)  ; Use lsp-ui and flycheck
-  (lsp-enable-file-watchers t)
-  (lsp-enable-symbol-highlighting t)
-  (lsp-enable-indentation t)
-  (lsp-enable-on-type-formatting t)
-  (lsp-enable-snippet t)
-  (lsp-enable-folding t)
-  (lsp-enable-imenu t)
-  (lsp-enable-dap-auto-configure t)
-  (lsp-keep-workspace-alive nil)
-  (lsp-log-io nil)  ; Only for debugging
-  (lsp-auto-guess-root t)  ; Automatically find project root
-  (lsp-file-watch-threshold 2000)  ; Increase if needed for large projects
+  :hook (
+    ;; TypeScript/JavaScript
+    ((typescript-mode js2-mode) . lsp-deferred)
+    ;; Python
+    (python-mode . lsp-deferred)
+    ;; Enable lsp-mode for other languages
+    ((go-mode rust-mode) . lsp-deferred)
+  )
+  :init
+  (setq lsp-keymap-prefix "C-c l")
+  :config
+  ;; LangServer configuration
+  (lsp-register-client
+   (make-lsp-client :new-connection (lsp-stdio-connection '("langserver" "start"))
+                    :major-modes '(typescript-mode js2-mode python-mode)
+                    :server-id 'langserver))
+  
+  ;; Performance optimizations
+  (setq gc-cons-threshold 100000000)
+  (setq read-process-output-max (* 1024 1024)))
 
-  ;; LangServer specific settings
-  (lsp-langserver-python-command "langserver")
-  (lsp-langserver-python-args '("start"))
-  (lsp-langserver-configuration-sections '("python" "jedi" "pylsp"))
-  (lsp-langserver-configuration "python.analysis.typeCheckingMode" "basic")
-  (lsp-langserver-configuration "python.analysis.autoImportCompletions" t)
-  (lsp-langserver-configuration "python.analysis.autoSearchPaths" t)
-  (lsp-langserver-configuration "python.analysis.useLibraryCodeForTypes" t))
-
-;; Optional: Better UI
+;; UI enhancements
 (use-package lsp-ui
   :ensure t
-  :after lsp-mode
   :commands lsp-ui-mode
-  :custom
-  (lsp-ui-doc-enable t)
-  (lsp-ui-doc-header t)
-  (lsp-ui-doc-include-signature t)
-  (lsp-ui-doc-position 'at-point)
-  (lsp-ui-doc-max-width 100)
-  (lsp-ui-doc-max-height 30)
-  (lsp-ui-sideline-enable t)
-  (lsp-ui-sideline-show-hover t)
-  (lsp-ui-sideline-show-code-actions t)
-  (lsp-ui-sideline-show-diagnostics t)
-  (lsp-ui-sideline-ignore-duplicate t))
+  :config
+  (setq lsp-ui-doc-enable t
+        lsp-ui-doc-position 'at-point
+        lsp-ui-doc-show-with-cursor t
+        lsp-ui-sideline-enable t
+        lsp-ui-sideline-show-hover t
+        lsp-ui-sideline-show-code-actions t))
 
-;; Optional: Company mode for completions
+;; Company (completion) integration
 (use-package company-lsp
   :ensure t
-  :after (lsp-mode company)
   :commands company-lsp
   :config
   (push 'company-lsp company-backends))
 
-;; Optional: Debugging support
-(use-package dap-mode
+;; Flycheck integration
+(use-package flycheck
   :ensure t
-  :after lsp-mode
   :config
-  (dap-mode t)
-  (dap-ui-mode t))
+  (global-flycheck-mode t))
+
+;; Optional: Better syntax highlighting
+(use-package tree-sitter
+  :ensure t
+  :config
+  (global-tree-sitter-mode)
+  (add-hook 'tree-sitter-after-on-hook #'tree-sitter-hl-mode))
+
+;; Optional: Projectile integration
+(use-package projectile
+  :ensure t
+  :config
+  (projectile-mode 1))
+
+;; Optional: which-key for keybindings
+(use-package which-key
+  :ensure t
+  :config
+  (which-key-mode))
+
+;; Custom keybindings
+(global-set-key (kbd "C-c l r") 'lsp-rename)
+(global-set-key (kbd "C-c l f") 'lsp-format-buffer)
+(global-set-key (kbd "C-c l a") 'lsp-execute-code-action)
+(global-set-key (kbd "C-c l d") 'lsp-describe-thing-at-point)
+```
 
 - Maintains a symbol table for quick lookups
 
