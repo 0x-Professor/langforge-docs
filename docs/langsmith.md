@@ -290,13 +290,33 @@ with tracing_v2_enabled(project_name="my-llm-app"):
     print(f"Trace URL: {tracing.get_trace_url()}")
 ```
 
+#### TypeScript
+
+```typescript
+import { traceable, tracing_v2_enabled } from "langsmith";
+
+const processQuery = traceable(async (question: string): Promise<string> => {
+  // Your LLM chain or processing logic here
+  return chain.call({ question });
+}, { name: "process_query" });
+
+// Enable tracing for this block
+(async () => {
+  await tracing_v2_enabled({ projectName: "my-llm-app" }, async () => {
+    const result = await processQuery("What is LangSmith?");
+    console.log(`Trace URL: https://smith.langchain.com/o/${process.env.LANGCHAIN_PROJECT}/runs/${tracing.get_current_run_id()}`);
+  });
+})();
+```
+
 #### Nested Tracing
 
 ```python
-@traceable
+from langsmith import traceable, tracing_v2_enabled
+
 def retrieve_context(question: str) -> str:
     """Retrieve relevant context for a question."""
-    # Simulate retrieval
+    # This would typically call a vector store or other data source
     return "LangSmith is a platform for developing and monitoring LLM applications."
 
 @traceable
@@ -319,6 +339,39 @@ def answer_question(question: str) -> str:
 with tracing_v2_enabled(project_name="nested-tracing"):
     response = answer_question("What is LangSmith?")
     print(response)
+```
+
+#### TypeScript
+
+```typescript
+import { traceable, tracing_v2_enabled } from "langsmith";
+
+async function retrieveContext(question: string): Promise<string> {
+  // This would typically call a vector store or other data source
+  return "LangSmith is a platform for developing and monitoring LLM applications.";
+}
+
+const generateResponse = traceable(async (question: string, context: string): Promise<string> => {
+  const prompt = `Answer the question based on the following context:
+
+${context}
+
+Question: ${question}`;
+  return llm.predict(prompt);
+}, { name: "generate_response" });
+
+const answerQuestion = traceable(async (question: string): Promise<string> => {
+  const context = await retrieveContext(question);
+  return generateResponse(question, context);
+}, { name: "answer_question" });
+
+// All nested calls will be traced
+(async () => {
+  await tracing_v2_enabled({ projectName: "nested-tracing" }, async () => {
+    const response = await answerQuestion("What is LangSmith?");
+    console.log(response);
+  });
+})();
 ```
 
 ### 2. Evaluation
@@ -361,6 +414,55 @@ eval_config = RunEvalConfig(
 )
 ```
 
+#### TypeScript
+
+```typescript
+import { RunEvalConfig, loadEvaluator } from "langchain/evaluation";
+import { ChatOpenAI } from "@langchain/openai";
+
+interface EvaluationResult {
+  fact_score: number;
+  word_count: number;
+  is_too_short: boolean;
+  feedback: string;
+}
+
+async function customEvaluator(run: any, example: any): Promise<EvaluationResult> {
+  const prediction = run.outputs.output;
+  
+  // Initialize evaluators
+  const factEvaluator = await loadEvaluator("criteria", {
+    criteria: "factuality",
+    llm: new ChatOpenAI({ temperature: 0 })
+  });
+  
+  // Run evaluations
+  const factResult = await factEvaluator.evaluateStrings({
+    prediction,
+    input: example.inputs.question
+  });
+  
+  // Calculate custom metrics
+  const wordCount = prediction.split(/\s+/).length;
+  
+  return {
+    fact_score: factResult.score,
+    word_count: wordCount,
+    is_too_short: wordCount < 5,
+    feedback: factResult.reasoning || ""
+  };
+}
+
+// Use the custom evaluator
+const evalConfig: RunEvalConfig = {
+  customEvaluators: [customEvaluator],
+  evalLLM: new ChatOpenAI({
+    temperature: 0,
+    modelName: "gpt-4"
+  })
+};
+```
+
 #### Human Feedback
 
 ```python
@@ -393,6 +495,48 @@ with get_openai_callback() as cb:
         score=4,
         comment="Good response, but could be more detailed."
     )
+```
+
+#### TypeScript
+
+```typescript
+import { Client } from "langsmith";
+import { getOpenAICallback } from "langchain/callbacks";
+
+const client = new Client();
+
+// Record human feedback
+async function recordFeedback(runId: string, score: number, comment: string = ""): Promise<void> {
+  await client.createFeedback({
+    runId,
+    key: "human_rating",
+    score,  // 1-5 scale
+    comment,
+  });
+}
+
+// Example usage
+(async () => {
+  const cb = await getOpenAICallback();
+  try {
+    const result = await chain.call({ question: "What is LangSmith?" });
+    console.log(`Generated response: ${result.text}`);
+    
+    // Get the trace URL for human review
+    const traceUrl = `https://smith.langchain.com/o/${process.env.LANGCHAIN_PROJECT}/runs/${tracing.getCurrentRunId()}`;
+    console.log(`Review at: ${traceUrl}`);
+    
+    // Simulate human feedback (in a real app, this would come from a UI)
+    await recordFeedback(
+      tracing.getCurrentRunId(),
+      4,
+      "Good response, but could be more detailed."
+    );
+  } finally {
+    // Make sure to close the callback
+    await cb?.close();
+  }
+})();
 ```
 
 ### 3. Monitoring
@@ -432,6 +576,48 @@ print(f"Average latency: {metrics_data['latency'].mean()}s")
 print(f"Total tokens used: {metrics_data['token_usage'].sum()}")
 ```
 
+#### TypeScript
+
+```typescript
+import { Client } from "langsmith";
+import { subDays } from "date-fns";
+
+const client = new Client();
+
+// Define metrics to track
+const metrics = [
+  "latency",
+  "token_usage",
+  "feedback.human_rating",
+  "evaluation.fact_score"
+] as const;
+
+// Get metrics for the last 24 hours
+const endTime = new Date();
+const startTime = subDays(endTime, 1);
+
+async function getMetrics() {
+  const metricsData = await client.readMetrics({
+    projectName: "my-llm-app",
+    metrics,
+    startTime,
+    endTime,
+    groupBy: ["model", "prompt_version"]
+  });
+
+  // Analyze metrics
+  const avgLatency = metricsData.latency.reduce((a, b) => a + b, 0) / metricsData.latency.length;
+  const totalTokens = metricsData.token_usage.reduce((a, b) => a + b, 0);
+  
+  console.log(`Average latency: ${avgLatency.toFixed(2)}s`);
+  console.log(`Total tokens used: ${totalTokens}`);
+  
+  return metricsData;
+}
+
+getMetrics().catch(console.error);
+```
+
 #### Setting Up Alerts
 
 ```python
@@ -451,6 +637,32 @@ client.create_alert(
     project_name="my-llm-app",
     **alert_config
 )
+```
+
+#### TypeScript
+
+```typescript
+// Create an alert for high latency
+const alertConfig = {
+  name: "High Latency Alert",
+  description: "Alert when average latency exceeds threshold",
+  metric: "latency" as const,
+  condition: ">" as const,
+  threshold: 5.0,  // seconds
+  window: "1h",    // 1-hour rolling window
+  notificationChannels: ["email:your-email@example.com"],
+  severity: "high" as const
+};
+
+async function createAlert() {
+  await client.createAlert({
+    projectName: "my-llm-app",
+    ...alertConfig
+  });
+  console.log("Alert created successfully");
+}
+
+createAlert().catch(console.error);
 ```
 
 ## Real-World Use Cases
@@ -493,6 +705,57 @@ bot = SupportBot()
 with tracing_v2_enabled(project_name="support-bot"):
     print(bot.generate_response("I can't log into my account."))
     print(bot.generate_response("I've tried resetting my password but it's not working."))
+```
+
+#### TypeScript
+
+```typescript
+import { ChatOpenAI } from "@langchain/openai";
+import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { traceable } from "langsmith";
+import { tracing_v2_enabled } from "langsmith/trace";
+
+class SupportBot {
+  private llm: ChatOpenAI;
+  private context: (HumanMessage | any)[] = [];
+
+  constructor() {
+    this.llm = new ChatOpenAI({
+      temperature: 0.7,
+      modelName: "gpt-4",
+    });
+  }
+
+  @traceable({ name: "generate_response" })
+  async generateResponse(userInput: string): Promise<string> {
+    // Add to conversation history
+    this.context.push(new HumanMessage(userInput));
+    
+    // Create prompt with context
+    const messages = [
+      new SystemMessage("You are a helpful customer support agent."),
+      ...this.context.slice(-6) // Last 3 exchanges (user + assistant)
+    ];
+    
+    // Generate response
+    const response = await this.llm.invoke(messages);
+    
+    // Add to context
+    this.context.push(response);
+    
+    return response.content;
+  }
+}
+
+// Example usage
+(async () => {
+  const bot = new SupportBot();
+  
+  await tracing_v2_enabled({ projectName: "support-bot" }, async () => {
+    console.log(await bot.generateResponse("I can't log into my account."));
+    console.log(await bot.generateResponse("I've tried resetting my password but it's not working."));
+  });
+})();
 ```
 
 ### 2. Content Moderation Pipeline
@@ -544,6 +807,69 @@ with tracing_v2_enabled(project_name="content-moderation"):
     result = moderator.moderate_content("This is a test message with no issues.")
     print(f"Is safe: {result.is_safe}")
     print(f"Reason: {result.reason}")
+```
+
+#### TypeScript
+
+```typescript
+import { ChatOpenAI } from "@langchain/openai";
+import { traceable } from "langsmith";
+import { tracing_v2_enabled } from "langsmith/trace";
+
+interface ModerationResult {
+  is_safe: boolean;
+  reason: string;
+  confidence: number;
+  flagged_categories: string[];
+  explanation: string;
+}
+
+class ContentModerator {
+  private llm: ChatOpenAI;
+
+  constructor() {
+    this.llm = new ChatOpenAI({
+      temperature: 0,
+      modelName: "gpt-4",
+    });
+  }
+
+  @traceable({ name: "moderate_content" })
+  async moderateContent(text: string): Promise<ModerationResult> {
+    const prompt = `Analyze the following content for policy violations:
+
+${text}
+
+Check for:
+- Hate speech or discrimination
+- Harassment or bullying
+- Violence or harmful content
+- Sexual content
+- Personal information
+- Spam or scams
+
+Return a JSON object with:
+- is_safe (boolean)
+- reason (string)
+- confidence (float 0-1)
+- flagged_categories (list of strings)
+- explanation (string)`;
+
+    const response = await this.llm.invoke(prompt);
+    return JSON.parse(response.content);
+  }
+}
+
+// Example usage
+(async () => {
+  const moderator = new ContentModerator();
+  
+  await tracing_v2_enabled({ projectName: "content-moderation" }, async () => {
+    const result = await moderator.moderateContent("This is a test message with no issues.");
+    console.log(`Is safe: ${result.is_safe}`);
+    console.log(`Reason: ${result.reason}`);
+  });
+})();
 ```
 
 ## Best Practices
