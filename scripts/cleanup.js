@@ -11,6 +11,9 @@ const PROJECT_ROOT = path.join(__dirname, '..');
 const PRESERVE_DIRS = ['docs', '.git'];
 const PRESERVE_FILES = ['README.md', 'LICENSE', 'CONTRIBUTING.md', 'CODE_OF_CONDUCT.md'];
 
+// List of file extensions to keep (markdown files)
+const KEEP_EXTENSIONS = ['.md', '.markdown'];
+
 // Function to safely remove a directory
 function removeDirectory(dirPath) {
   if (fs.existsSync(dirPath)) {
@@ -31,16 +34,42 @@ function removeFile(filePath) {
 function cleanProject() {
   console.log('Starting project cleanup...');
   
-  // List of directories and files to remove
-  const removeDirs = [
-    'node_modules',
-    'public',
-    'src',
-    'scripts',
-    '.next',
-    'dist',
-    '.vscode',
-    '.github',
+  // List of directories to keep
+  const keepDirs = ['docs', '.git'];
+  
+  // List of files to keep
+  const keepFiles = ['README.md', 'CONTRIBUTING.md', 'CODE_OF_CONDUCT.md', 'LICENSE'];
+  
+  // Get all files and directories in the project root
+  const items = fs.readdirSync(PROJECT_ROOT, { withFileTypes: true });
+  
+  items.forEach(item => {
+    const itemPath = path.join(PROJECT_ROOT, item.name);
+    
+    // Skip items we want to keep
+    if (keepDirs.includes(item.name) || 
+        (item.isFile() && keepFiles.includes(item.name)) ||
+        (item.isFile() && KEEP_EXTENSIONS.includes(path.extname(item.name).toLowerCase()))) {
+      console.log(`Keeping: ${itemPath}`);
+      return;
+    }
+    
+    // Remove the item
+    try {
+      if (item.isDirectory()) {
+        console.log(`Removing directory: ${itemPath}`);
+        fs.rmSync(itemPath, { recursive: true, force: true });
+      } else {
+        console.log(`Removing file: ${itemPath}`);
+        fs.unlinkSync(itemPath);
+      }
+    } catch (error) {
+      console.error(`Error removing ${itemPath}:`, error.message);
+    }
+  });
+  
+  // Clean up any remaining files in the root directory
+  const removeFiles = [
     '.gitignore',
     'bun.lockb',
     'components.json',
@@ -55,21 +84,21 @@ function cleanProject() {
     'tsconfig.node.json',
     'vite.config.ts'
   ];
-
-  // Remove directories
-  removeDirs.forEach(dir => {
-    const fullPath = path.join(PROJECT_ROOT, dir);
-    if (fs.existsSync(fullPath)) {
-      if (fs.lstatSync(fullPath).isDirectory()) {
-        removeDirectory(fullPath);
-      } else {
-        removeFile(fullPath);
+  
+  removeFiles.forEach(file => {
+    const filePath = path.join(PROJECT_ROOT, file);
+    if (fs.existsSync(filePath)) {
+      try {
+        console.log(`Removing file: ${filePath}`);
+        fs.unlinkSync(filePath);
+      } catch (error) {
+        console.error(`Error removing ${filePath}:`, error.message);
       }
     }
   });
 
   console.log('\nCleanup complete!');
-  console.log('Only markdown documentation remains in the /docs directory.');
+  console.log('Only markdown documentation remains in the project.');
 }
 
 // Run the cleanup
