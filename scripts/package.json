@@ -1,0 +1,16 @@
+{
+  "name": "langforge-docs-converter",
+  "version": "1.0.0",
+  "description": "Scripts to convert LangForge documentation to markdown",
+  "main": "convert-to-md.js",
+  "scripts": {
+    "convert": "node convert-to-md.js"
+  },
+  "dependencies": {
+    "jsdom": "^22.1.0",
+    "marked": "^9.1.5",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "type": "module"
+}
