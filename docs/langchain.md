@@ -396,6 +396,25 @@ Memory in LangChain enables applications to maintain context and state across mu
    # Output: {'history': 'Human: Hi there!\nAI: Hello! How can I help?\nHuman: What\'s the weather like?\nAI: I\'m sorry, I can\'t check the weather right now.'}
    ```
 
+   ```typescript
+   // TypeScript equivalent
+   import { ConversationBufferMemory } from "langchain/memory";
+   
+   const memory = new ConversationBufferMemory();
+   await memory.saveContext(
+     { input: "Hi there!" }, 
+     { output: "Hello! How can I help?" }
+   );
+   await memory.saveContext(
+     { input: "What's the weather like?" }, 
+     { output: "I'm sorry, I can't check the weather right now." }
+   );
+   
+   const memoryVariables = await memory.loadMemoryVariables({});
+   console.log(memoryVariables);
+   // Output: { history: 'Human: Hi there!\nAI: Hello! How can I help?\nHuman: What\'s the weather like?\nAI: I\'m sorry, I can\'t check the weather right now.' }
+   ```
+
 2. **Conversation Buffer Window Memory**
    Keeps a sliding window of the conversation
    
@@ -408,6 +427,26 @@ Memory in LangChain enables applications to maintain context and state across mu
    
    print(memory.load_memory_variables({}))
    # Only shows the last exchange
+   ```
+
+   ```typescript
+   // TypeScript equivalent
+   import { ConversationBufferWindowMemory } from "langchain/memory";
+   
+   // Keep only the last exchange (k=1)
+   const memory = new ConversationBufferWindowMemory({ k: 1 });
+   await memory.saveContext(
+     { input: "Hi there!" }, 
+     { output: "Hello! How can I help?" }
+   );
+   await memory.saveContext(
+     { input: "What's the weather like?" }, 
+     { output: "I'm sorry, I can't check the weather right now." }
+   );
+   
+   const memoryVariables = await memory.loadMemoryVariables({});
+   console.log(memoryVariables);
+   // Only shows the last exchange
    ```
 
 3. **Entity Memory**
@@ -426,6 +465,25 @@ Memory in LangChain enables applications to maintain context and state across mu
    )
    
    print(memory.load_memory_variables({"input": "Where does John live?"}))
+   ```
+
+   ```typescript
+   // TypeScript equivalent
+   import { ConversationEntityMemory } from "langchain/memory";
+   import { OpenAI } from "langchain/llms/openai";
+   
+   const llm = new OpenAI({ temperature: 0 });
+   const memory = new ConversationEntityMemory({ llm });
+   
+   await memory.saveContext(
+     { input: "John is 30 years old and lives in New York" },
+     { output: "Got it, I'll remember that about John." }
+   );
+   
+   const memoryVariables = await memory.loadMemoryVariables({
+     input: "Where does John live?"
+   });
+   console.log(memoryVariables);
    ```
 
 4. **Vector Store Memory**
@@ -456,6 +514,39 @@ Memory in LangChain enables applications to maintain context and state across mu
    print(memory.load_memory_variables({"input": "What's my favorite color?"}))
    ```
 
+   ```typescript
+   // TypeScript equivalent
+   import { VectorStoreMemory } from "langchain/memory";
+   import { OpenAIEmbeddings } from "langchain/embeddings/openai";
+   import { HNSWLib } from "langchain/vectorstores/hnswlib";
+   
+   const embeddings = new OpenAIEmbeddings();
+   const vectorStore = await HNSWLib.fromTexts(
+     [],
+     [],
+     embeddings,
+     { space: "cosine" }
+   );
+   
+   const memory = new VectorStoreMemory({
+     vectorStore,
+     memoryKey: "chat_history",
+     returnDocs: true,
+     inputKey: "input",
+   });
+   
+   await memory.saveContext(
+     { input: "My favorite color is blue" },
+     { output: "I'll remember your favorite color is blue" }
+   );
+   
+   // Later, retrieve similar memories
+   const memoryVariables = await memory.loadMemoryVariables({
+     input: "What's my favorite color?",
+   });
+   console.log(memoryVariables);
+   ```
+
 #### Using Memory with Chains
 
 ```python
@@ -479,6 +570,34 @@ print(f"AI: {response}")
 # Second message - the model remembers the context
 response = conversation.predict(input="What's my name?")
 print(f"AI: {response}")
+```
+
+```typescript
+// TypeScript equivalent
+import { OpenAI } from "langchain/llms/openai";
+import { ConversationChain } from "langchain/chains";
+import { ConversationBufferMemory } from "langchain/memory";
+
+async function runConversation() {
+  // Create a conversation chain with memory
+  const model = new OpenAI({ temperature: 0 });
+  const memory = new ConversationBufferMemory();
+  const chain = new ConversationChain({
+    llm: model,
+    memory,
+    verbose: true
+  });
+
+  // First message
+  const response1 = await chain.call({ input: "Hi, I'm John" });
+  console.log(`AI: ${response1.response}`);
+
+  // Second message - the model remembers the context
+  const response2 = await chain.call({ input: "What's my name?" });
+  console.log(`AI: ${response2.response}`);
+}
+
+runConversation().catch(console.error);
 ```
 
 #### Custom Memory Implementation
@@ -628,6 +747,37 @@ Chains in LangChain allow you to combine multiple components together to create 
    print(result)
    ```
 
+   ```typescript
+   // TypeScript equivalent
+   import { PromptTemplate } from "langchain/prompts";
+   import { OpenAI } from "langchain/llms/openai";
+   import { LLMChain } from "langchain/chains";
+   
+   // Define the prompt template
+   const template = `You are a naming consultant for new companies.
+   What is a good name for a {company_type} company that makes {product}?`;
+   
+   const prompt = new PromptTemplate({
+     template,
+     inputVariables: ["company_type", "product"],
+   });
+   
+   // Create the chain
+   const llm = new OpenAI({ temperature: 0.9 });
+   const chain = new LLMChain({ llm, prompt });
+   
+   // Run the chain
+   async function generateCompanyName() {
+     const result = await chain.call({
+       company_type: "tech",
+       product: "AI-powered coffee makers"
+     });
+     console.log(result.text);
+   }
+   
+   generateCompanyName().catch(console.error);
+   ```
+
 2. **Sequential Chains**
    Combine multiple chains where the output of one chain is the input to the next.
    
@@ -665,6 +815,53 @@ Chains in LangChain allow you to combine multiple components together to create 
    # Run the chain
    result = overall_chain.run({"company_type": "tech", "product": "AI-powered coffee makers"})
    print(result)
+   ```
+
+   ```typescript
+   // TypeScript equivalent
+   import { PromptTemplate } from "langchain/prompts";
+   import { OpenAI } from "langchain/llms/openai";
+   import { LLMChain, SimpleSequentialChain } from "langchain/chains";
+   
+   async function generateCompanyBranding() {
+     // First chain: Generate company name
+     const nameTemplate = `You are a naming consultant for new companies.
+     What is a good name for a {company_type} company that makes {product}?`;
+     
+     const namePrompt = new PromptTemplate({
+       template: nameTemplate,
+       inputVariables: ["company_type", "product"],
+     });
+     
+     // Second chain: Generate a slogan
+     const sloganTemplate = "Write a catchy slogan for a company called {company_name}";
+     const sloganPrompt = new PromptTemplate({
+       template: sloganTemplate,
+       inputVariables: ["company_name"],
+     });
+     
+     const llm = new OpenAI({ temperature: 0.9 });
+     const nameChain = new LLMChain({ llm, prompt: namePrompt });
+     const sloganChain = new LLMChain({ llm, prompt: sloganPrompt });
+     
+     // Combine the chains
+     const overallChain = new SimpleSequentialChain({
+       chains: [nameChain, sloganChain],
+       verbose: true,
+     });
+     
+     // Run the chain
+     const result = await overallChain.run(
+       JSON.stringify({
+         company_type: "tech",
+         product: "AI-powered coffee makers"
+       })
+     );
+     
+     console.log(result);
+   }
+   
+   generateCompanyBranding().catch(console.error);
    ```
 
 3. **Router Chains**
@@ -733,6 +930,86 @@ Chains in LangChain allow you to combine multiple components together to create 
    print(router_chain.run("Tell me a joke"))  # Will use default chain
    ```
 
+   ```typescript
+   // TypeScript equivalent
+   import { MultiPromptChain } from "langchain/chains";
+   import { OpenAI } from "langchain/llms/openai";
+   import { ConversationChain } from "langchain/chains";
+   import { LLMChain } from "langchain/chains";
+   import { PromptTemplate } from "langchain/prompts";
+   import { LLMRouterChain, MultiPromptChain } from "langchain/chains";
+   
+   async function runRouterChain() {
+     // Define the prompt templates
+     const physicsTemplate = `You are a very smart physics professor. 
+     You are great at answering questions about physics in a concise and easy to understand manner. 
+     Here's a question:
+     {input}`;
+     
+     const mathTemplate = `You are a very good mathematician. 
+     You are great at answering math questions. 
+     You are so good because you are able to break down 
+     hard problems into their component parts, answer the component parts, and then put them together
+     to answer the broader question.
+     Here's a question:
+     {input}`;
+     
+     // Create prompt info
+     const promptInfos = [
+       {
+         name: "physics",
+         description: "Good for answering questions about physics",
+         promptTemplate: physicsTemplate,
+       },
+       {
+         name: "math",
+         description: "Good for answering math questions",
+         promptTemplate: mathTemplate,
+       },
+     ];
+     
+     const llm = new OpenAI({ temperature: 0 });
+     const destinationChains: Record<string, any> = {};
+     
+     // Create destination chains
+     for (const pInfo of promptInfos) {
+       const prompt = new PromptTemplate({
+         template: pInfo.promptTemplate,
+         inputVariables: ["input"],
+       });
+       const chain = new LLMChain({
+         llm,
+         prompt,
+         outputKey: "text",
+       });
+       destinationChains[pInfo.name] = chain;
+     }
+     
+     // Default chain
+     const defaultChain = new ConversationChain({
+       llm,
+       outputKey: "text",
+     });
+     
+     // Create router chain (simplified example - actual implementation may vary)
+     const routerChain = new MultiPromptChain({
+       routerChain: new LLMRouterChain({
+         llm,
+         destinationChains: Object.keys(destinationChains),
+       }),
+       destinationChains,
+       defaultChain,
+     });
+     
+     // Test the router
+     console.log(await routerChain.call({ input: "What is the speed of light?" }));
+     console.log(await routerChain.call({ input: "What is 42 * 7?" }));
+     console.log(await routerChain.call({ input: "Tell me a joke" })); // Will use default chain
+   }
+   
+   runRouterChain().catch(console.error);
+   ```
+
 4. **Transform Chain**
    Apply a transformation to the input/output.
    
@@ -772,6 +1049,60 @@ Chains in LangChain allow you to combine multiple components together to create 
    )
    
    print(chain({"text": "hello world"}))
+   ```
+
+   ```typescript
+   // TypeScript equivalent
+   import { TransformChain } from "langchain/chains";
+   import { SequentialChain } from "langchain/chains";
+   import { OpenAI } from "langchain/llms/openai";
+   import { PromptTemplate } from "langchain/prompts";
+   import { LLMChain } from "langchain/chains";
+   
+   async function runTransformChain() {
+     // Define a transformation function
+     const transformFunc = (inputs: { text: string }) => {
+       return { output_text: inputs.text.toUpperCase() };
+     };
+     
+     // Create the transform chain
+     const transformChain = new TransformChain({
+       inputVariables: ["text"],
+       outputVariables: ["output_text"],
+       transform: transformFunc,
+     });
+     
+     // Use with another chain
+     const template = `Reverse this text:
+     {output_text}`;
+     
+     const prompt = new PromptTemplate({
+       template,
+       inputVariables: ["output_text"],
+     });
+     
+     const llm = new OpenAI({ temperature: 0 });
+     const llmChain = new LLMChain({
+       llm,
+       prompt,
+       outputKey: "final_output",
+     });
+     
+     // Combine the chains
+     const chain = new SequentialChain({
+       chains: [transformChain, llmChain],
+       inputVariables: ["text"],
+       outputVariables: ["final_output"],
+     });
+     
+     const result = await chain.call({
+       text: "hello world",
+     });
+     
+     console.log(result);
+   }
+   
+   runTransformChain().catch(console.error);
    ```
 
 #### Custom Chain Implementation
