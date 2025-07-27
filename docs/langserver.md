@@ -472,26 +472,6 @@ lspconfig.langserver.setup{
   (dap-mode t)
   (dap-ui-mode t))
 
-## Core Concepts
-
-### 1. Language Server Protocol (LSP)
-
-LangServer implements the Language Server Protocol, which provides a standardized way for tools to communicate with language servers. Key features include:
-
-- **Text Document Synchronization**: Keeps the server's document model in sync with the editor
-- **Language Features**: Completion, hover, signature help, etc.
-- **Workspace Management**: Handles workspace folders and configurations
-
-### 2. Sessions and Connections
-
-- Each editor instance creates a new session
-- Sessions maintain their own document state
-- Connections handle the JSON-RPC communication
-
-### 3. Document Management
-
-- Documents are tracked by URI
-- Supports incremental updates
 - Maintains a symbol table for quick lookups
 
 ## Configuration
