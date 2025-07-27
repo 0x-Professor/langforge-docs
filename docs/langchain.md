@@ -796,6 +796,308 @@ print(result["answer"])
 
 This enhanced chains section provides a comprehensive guide to building and using chains in LangChain, from basic usage to advanced custom implementations.
 
+### 5. Indexes
+
+Indexes in LangChain help you structure your documents for efficient retrieval and use with language models. This section covers document loaders, text splitters, and vector stores.
+
+#### Document Loaders
+
+LangChain provides various document loaders to load data from different sources:
+
+```python
+# Load from a text file
+from langchain.document_loaders import TextLoader
+loader = TextLoader("path/to/file.txt")
+documents = loader.load()
+
+# Load from a PDF
+from langchain.document_loaders import PyPDFLoader
+loader = PyPDFLoader("example.pdf")
+pages = loader.load_and_split()
+
+# Load from a webpage
+from langchain.document_loaders import WebBaseLoader
+loader = WebBaseLoader("https://example.com")
+data = loader.load()
+
+# Load from a directory
+from langchain.document_loaders import DirectoryLoader
+loader = DirectoryLoader('./data', glob='**/*.txt')
+documents = loader.load()
+```
+
+#### Text Splitters
+
+Split documents into smaller chunks for processing:
+
+```python
+from langchain.text_splitter import (
+    CharacterTextSplitter,
+    RecursiveCharacterTextSplitter,
+    TokenTextSplitter
+)
+
+# Basic character-based splitting
+text_splitter = CharacterTextSplitter(
+    separator="\n\n",
+    chunk_size=1000,
+    chunk_overlap=200,
+    length_function=len
+)
+texts = text_splitter.split_documents(documents)
+
+# More sophisticated recursive splitting
+recursive_splitter = RecursiveCharacterTextSplitter(
+    chunk_size=1000,
+    chunk_overlap=100,
+    length_function=len
+)
+chunks = recursive_splitter.split_documents(documents)
+
+# Token-based splitting (useful for models with token limits)
+token_splitter = TokenTextSplitter(
+    chunk_size=100,
+    chunk_overlap=20
+)
+token_chunks = token_splitter.split_documents(documents)
+```
+
+#### Vector Stores
+
+Store and retrieve document embeddings efficiently:
+
+```python
+from langchain.embeddings import OpenAIEmbeddings
+from langchain.vectorstores import FAISS, Chroma, Pinecone
+from langchain.text_splitter import CharacterTextSplitter
+
+# Initialize embeddings
+embeddings = OpenAIEmbeddings()
+
+# Example with FAISS (local in-memory)
+faiss_db = FAISS.from_documents(texts, embeddings)
+
+# Example with Chroma (persistent storage)
+chroma_db = Chroma.from_documents(
+    documents=texts,
+    embedding=embeddings,
+    persist_directory="./chroma_db"
+)
+chroma_db.persist()
+
+# Example with Pinecone (cloud-based)
+import pinecone
+
+pinecone.init(api_key="your-api-key", environment="your-env")
+index_name = "langchain-demo"
+
+# Create a new index if it doesn't exist
+if index_name not in pinecone.list_indexes():
+    pinecone.create_index(
+        name=index_name,
+        metric='cosine',
+        dimension=1536  # OpenAI embeddings dimension
+    )
+
+pinecone_db = Pinecone.from_documents(
+    texts, 
+    embeddings, 
+    index_name=index_name
+)
+```
+
+#### Document Retrievers
+
+Retrieve relevant documents based on queries:
+
+```python
+# Simple similarity search
+query = "What is LangChain?"
+docs = faiss_db.similarity_search(query)
+
+# Similarity search with score
+docs_with_scores = faiss_db.similarity_search_with_score(query)
+
+# Maximum marginal relevance search (diverse results)
+diverse_docs = faiss_db.max_marginal_relevance_search(
+    query,
+    k=3,  # number of documents to return
+    fetch_k=10  # number of documents to fetch before filtering
+)
+
+# Using a retriever
+retriever = faiss_db.as_retriever(
+    search_type="similarity",  # or "mmr" or "similarity_score_threshold"
+    search_kwargs={"k": 5}
+)
+relevant_docs = retriever.get_relevant_documents(query)
+```
+
+#### Real-world Example: Document Q&A System
+
+```python
+from langchain.chains import RetrievalQA
+from langchain.llms import OpenAI
+from langchain.document_loaders import TextLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.embeddings import OpenAIEmbeddings
+from langchain.vectorstores import FAISS
+
+# 1. Load and process documents
+loader = TextLoader("state_of_the_union.txt")
+documents = loader.load()
+
+# 2. Split documents
+text_splitter = RecursiveCharacterTextSplitter(
+    chunk_size=1000,
+    chunk_overlap=200
+)
+texts = text_splitter.split_documents(documents)
+
+# 3. Create vector store
+embeddings = OpenAIEmbeddings()
+db = FAISS.from_documents(texts, embeddings)
+
+# 4. Create retriever
+retriever = db.as_retriever(
+    search_type="mmr",
+    search_kwargs={"k": 3}
+)
+
+# 5. Create QA chain
+qa = RetrievalQA.from_chain_type(
+    llm=OpenAI(),
+    chain_type="stuff",
+    retriever=retriever,
+    return_source_documents=True
+)
+
+# 6. Query the system
+result = qa({"query": "What did the president say about the Supreme Court?"})
+print(result["result"])
+print("\nSources:")
+for doc in result["source_documents"]:
+    print(f"- {doc.metadata['source']}, page {doc.metadata.get('page', 'N/A')}")
+```
+
+#### Best Practices for Working with Indexes
+
+1. **Document Processing**
+   - Clean and preprocess text before indexing
+   - Remove irrelevant content (headers, footers, etc.)
+   - Add metadata for better filtering and organization
+
+2. **Chunking Strategies**
+   - Choose appropriate chunk size based on your use case
+   - Use overlapping chunks to maintain context
+   - Consider document structure when splitting (e.g., split by sections)
+
+3. **Vector Store Selection**
+   - **FAISS**: Fast and efficient for small to medium datasets
+   - **Chroma**: Good for local development and testing
+   - **Pinecone/Weaviate**: Scalable cloud solutions for production
+   - **Milvus/Weaviate**: Enterprise-grade vector databases
+
+4. **Performance Optimization**
+   - Batch process large document collections
+   - Cache embeddings for frequently accessed documents
+   - Use approximate nearest neighbor search for large datasets
+   - Consider dimensionality reduction for high-dimensional embeddings
+
+5. **Metadata Management**
+   - Add relevant metadata to documents
+   - Use metadata for filtering and organization
+   - Include source information for attribution
+
+#### Advanced: Custom Document Processing Pipeline
+
+```python
+from typing import List, Dict, Any
+from langchain.schema import Document
+from langchain.document_loaders import TextLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.embeddings import OpenAIEmbeddings
+from langchain.vectorstores import FAISS
+import re
+
+class DocumentProcessor:
+    def __init__(self, chunk_size: int = 1000, chunk_overlap: int = 200):
+        self.chunk_size = chunk_size
+        self.chunk_overlap = chunk_overlap
+        self.embeddings = OpenAIEmbeddings()
+        self.text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
+            length_function=len
+        )
+    
+    def clean_text(self, text: str) -> str:
+        """Clean and preprocess text."""
+        # Remove extra whitespace
+        text = ' '.join(text.split())
+        # Remove special characters (keep alphanumeric and basic punctuation)
+        text = re.sub(r'[^\w\s.,;:!?\-]', '', text)
+        return text
+    
+    def process_document(self, file_path: str) -> List[Document]:
+        """Process a single document."""
+        # Load document
+        loader = TextLoader(file_path)
+        documents = loader.load()
+        
+        # Clean and process each document
+        processed_docs = []
+        for doc in documents:
+            # Clean text
+            clean_content = self.clean_text(doc.page_content)
+            
+            # Add metadata
+            metadata = doc.metadata.copy()
+            metadata["source_file"] = file_path
+            
+            # Create new document with cleaned content
+            processed_doc = Document(
+                page_content=clean_content,
+                metadata=metadata
+            )
+            processed_docs.append(processed_doc)
+        
+        # Split documents into chunks
+        chunks = self.text_splitter.split_documents(processed_docs)
+        return chunks
+    
+    def create_vector_store(self, documents: List[Document]) -> FAISS:
+        """Create a vector store from processed documents."""
+        return FAISS.from_documents(documents, self.embeddings)
+    
+    def process_directory(self, directory_path: str) -> FAISS:
+        """Process all documents in a directory."""
+        from pathlib import Path
+        
+        all_chunks = []
+        
+        # Process all .txt files in the directory
+        for file_path in Path(directory_path).glob("**/*.txt"):
+            try:
+                chunks = self.process_document(str(file_path))
+                all_chunks.extend(chunks)
+                print(f"Processed {file_path}: {len(chunks)} chunks")
+            except Exception as e:
+                print(f"Error processing {file_path}: {str(e)}")
+        
+        # Create and return vector store
+        return self.create_vector_store(all_chunks)
+
+# Usage
+processor = DocumentProcessor(chunk_size=800, chunk_overlap=100)
+vector_store = processor.process_directory("./documents")
+
+# Save the vector store for later use
+vector_store.save_local("my_vector_store")
+```
+
+This indexes section provides a comprehensive guide to working with documents in LangChain, from loading and processing to efficient retrieval using vector stores.
+
 ## Quick Start
 
 ```python
