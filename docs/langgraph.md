@@ -960,52 +960,260 @@ def parallel_process(items: list, func: callable, max_workers: int = 4) -> list:
         return [future.result() for future in as_completed(futures)]
 ```
 
-### 5. Testing
+## Real-World Use Cases
 
-#### Strategies:
-1. **Unit Tests**: Test individual nodes in isolation
-2. **Integration Tests**: Test the entire workflow
-3. **Property Tests**: Verify properties of your system
-4. **Fuzz Testing**: Test with random inputs
-5. **Performance Testing**: Measure and optimize performance
+### 1. Customer Support Chatbot
+
+```python
+from typing import List, Dict, Any, TypedDict, Optional
+from datetime import datetime
+from enum import Enum
+from pydantic import BaseModel, Field
+
+class SupportTicket(BaseModel):
+    """Represents a customer support ticket."""
+    ticket_id: str
+    customer_id: str
+    subject: str
+    description: str
+    priority: str = "normal"
+    status: str = "open"
+    created_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
+    updated_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
+    metadata: Dict[str, Any] = {}
+
+class SupportBotState(TypedDict):
+    """State for the customer support chatbot."""
+    messages: List[Dict[str, str]]
+    ticket: Optional[SupportTicket]
+    search_results: List[Dict[str, Any]]
+    suggested_responses: List[str]
+    status: str
+    context: Dict[str, Any]
+
+def create_support_bot():
+    """Create a customer support chatbot workflow."""
+    workflow = StateGraph(SupportBotState)
+    
+    # Add nodes
+    workflow.add_node("greet_customer", greet_customer_node)
+    workflow.add_node("classify_issue", classify_issue_node)
+    workflow.add_node("search_knowledge_base", search_knowledge_base_node)
+    workflow.add_node("create_ticket", create_ticket_node)
+    workflow.add_node("generate_response", generate_response_node)
+    workflow.add_node("escalate_to_agent", escalate_to_agent_node)
+    
+    # Define edges
+    workflow.add_edge("greet_customer", "classify_issue")
+    
+    workflow.add_conditional_edges(
+        "classify_issue",
+        lambda s: "escalate" if s.get("requires_human") else "search_knowledge_base",
+        {
+            "search_knowledge_base": "search_knowledge_base",
+            "escalate": "escalate_to_agent"
+        }
+    )
+    
+    workflow.add_conditional_edges(
+        "search_knowledge_base",
+        lambda s: "create_ticket" if s.get("needs_ticket") else "generate_response",
+        {
+            "create_ticket": "create_ticket",
+            "generate_response": "generate_response"
+        }
+    )
+    
+    workflow.add_edge("create_ticket", "generate_response")
+    workflow.add_edge("generate_response", END)
+    workflow.add_edge("escalate_to_agent", END)
+    
+    workflow.set_entry_point("greet_customer")
+    return workflow.compile()
+```
+
+### 2. E-commerce Order Processing
+
+```python
+class OrderStatus(str, Enum):
+    RECEIVED = "received"
+    VALIDATING = "validating"
+    PAYMENT_PROCESSING = "payment_processing"
+    INVENTORY_CHECK = "inventory_check"
+    SHIPPING = "shipping"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+
+class Order(BaseModel):
+    order_id: str
+    customer_id: str
+    items: List[Dict[str, Any]]
+    total_amount: float
+    status: OrderStatus = OrderStatus.RECEIVED
+    payment_status: str = "pending"
+    shipping_address: Dict[str, str]
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+def create_order_workflow():
+    """Create an order processing workflow."""
+    workflow = StateGraph(Order)
+    
+    # Add nodes
+    workflow.add_node("validate_order", validate_order_node)
+    workflow.add_node("process_payment", process_payment_node)
+    workflow.add_node("check_inventory", check_inventory_node)
+    workflow.add_node("prepare_shipment", prepare_shipment_node)
+    workflow.add_node("update_order_status", update_order_status_node)
+    workflow.add_node("handle_failure", handle_failure_node)
+    
+    # Define edges
+    workflow.add_edge("validate_order", "process_payment")
+    workflow.add_edge("process_payment", "check_inventory")
+    workflow.add_edge("check_inventory", "prepare_shipment")
+    workflow.add_edge("prepare_shipment", "update_order_status")
+    workflow.add_edge("update_order_status", END)
+    
+    # Add error handling
+    workflow.add_conditional_edges(
+        "validate_order",
+        lambda s: "handle_failure" if s.get("validation_error") else "process_payment",
+        {"process_payment": "process_payment", "handle_failure": "handle_failure"}
+    )
+    
+    workflow.set_entry_point("validate_order")
+    return workflow.compile()
+```
+
+## Testing Strategies
+
+### 1. Unit Testing Nodes
 
 ```python
 import pytest
 from unittest.mock import patch, MagicMock
 
-# Unit test example
-def test_process_data_node():
-    """Test the process_data_node function."""
-    # Setup
-    test_state = {
-        "input_data": [1, 2, 3],
-        "processing_config": {"multiplier": 2}
-    }
-    
-    # Execute
-    with patch('your_module.some_processing_function') as mock_process:
-        mock_process.return_value = [2, 4, 6]
-        result = process_data_node(test_state)
-        
-        # Verify
-        assert result["status"] == "completed"
-        assert result["processed_data"] == [2, 4, 6]
-        mock_process.assert_called_once_with([1, 2, 3], multiplier=2)
+# Test data
+TEST_ORDER = {
+    "order_id": "order_123",
+    "customer_id": "cust_456",
+    "items": [{"product_id": "prod_789", "quantity": 2}],
+    "total_amount": 99.98,
+    "shipping_address": {"zip": "10001"},
+    "status": "received"
+}
 
-# Integration test example
-@pytest.mark.asyncio
-async def test_workflow():
-    """Test the entire workflow."""
-    # Setup test data
-    test_input = {"messages": [{"role": "user", "content": "Hello!"}]}
+def test_validate_order_node():
+    """Test the order validation node."""
+    # Test valid order
+    state = {"order": Order(**TEST_ORDER)}
+    result = validate_order_node(state)
+    assert result["status"] == "validating"
+    assert "validation_errors" not in result
     
-    # Execute workflow
-    result = await app.ainvoke(test_input)
+    # Test invalid order (missing required field)
+    invalid_order = TEST_ORDER.copy()
+    del invalid_order["shipping_address"]
+    with pytest.raises(ValueError):
+        validate_order_node({"order": Order(**invalid_order)})
+
+@patch("payment_gateway.charge_customer")
+def test_process_payment_node(mock_charge):
+    """Test payment processing with successful and failed scenarios."""
+    # Mock successful payment
+    mock_charge.return_value = {"status": "succeeded", "transaction_id": "txn_123"}
     
-    # Verify results
-    assert "messages" in result
-    assert len(result["messages"]) > 1
-    assert result["status"] == "completed"
+    state = {
+        "order": Order(**TEST_ORDER),
+        "payment_method": {"token": "pm_123"}
+    }
+    result = process_payment_node(state)
+    assert result["payment_status"] == "succeeded"
+    assert result["transaction_id"] == "txn_123"
+    
+    # Test payment failure
+    mock_charge.side_effect = PaymentError("Insufficient funds")
+    with pytest.raises(PaymentError):
+        process_payment_node(state)
+```
+
+### 2. Integration Testing
+
+```python
+import asyncio
+
+class TestOrderWorkflow:
+    @pytest.fixture
+    def workflow(self):
+        """Create a test workflow instance."""
+        return create_order_workflow()
+    
+    @pytest.mark.asyncio
+    async def test_complete_order_flow(self, workflow):
+        """Test the complete order workflow with valid data."""
+        test_order = Order(
+            order_id="test_123",
+            customer_id="test_cust_456",
+            items=[{"product_id": "test_prod_789", "quantity": 1}],
+            total_amount=49.99,
+            shipping_address={"zip": "10001"}
+        )
+        
+        result = await workflow.ainvoke({"order": test_order.dict()})
+        
+        assert result["status"] == "completed"
+        assert result["payment_status"] == "succeeded"
+        assert result["shipping_tracking_number"] is not None
+```
+
+### 3. Performance Testing
+
+```python
+import time
+import asyncio
+
+class PerformanceTest:
+    def __init__(self, workflow):
+        self.workflow = workflow
+        self.metrics = {
+            "total_requests": 0,
+            "successful_requests": 0,
+            "failed_requests": 0,
+            "response_times": []
+        }
+    
+    async def run_test(self, test_cases: List[Dict[str, Any]], concurrency: int = 10):
+        """Run performance test with the given test cases."""
+        start_time = time.time()
+        
+        # Process test cases in batches
+        for i in range(0, len(test_cases), concurrency):
+            batch = test_cases[i:i + concurrency]
+            tasks = [self._process_single_case(case) for case in batch]
+            await asyncio.gather(*tasks)
+        
+        # Calculate metrics
+        total_time = time.time() - start_time
+        self.metrics["total_time"] = total_time
+        self.metrics["requests_per_second"] = self.metrics["total_requests"] / total_time
+        
+        if self.metrics["response_times"]:
+            self.metrics["avg_response_time"] = sum(self.metrics["response_times"]) / len(self.metrics["response_times"])
+        
+        return self.metrics
+    
+    async def _process_single_case(self, test_case: Dict[str, Any]):
+        """Process a single test case and record metrics."""
+        self.metrics["total_requests"] += 1
+        start_time = time.time()
+        
+        try:
+            await self.workflow.ainvoke(test_case)
+            self.metrics["successful_requests"] += 1
+            self.metrics["response_times"].append(time.time() - start_time)
+        except Exception:
+            self.metrics["failed_requests"] += 1
+```
 ```
 
 ### 6. Monitoring and Observability
