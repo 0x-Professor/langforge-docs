@@ -1329,6 +1329,50 @@ loader = DirectoryLoader('./data', glob='**/*.txt')
 documents = loader.load()
 ```
 
+```typescript
+// TypeScript equivalent
+import { TextLoader } from "langchain/document_loaders/fs/text";
+import { PDFLoader } from "langchain/document_loaders/fs/pdf";
+import { WebPDFLoader } from "langchain/document_loaders/web/pdf";
+import { WebBaseLoader } from "langchain/document_loaders/web/base";
+import { DirectoryLoader } from "langchain/document_loaders/fs/directory";
+import { Document } from "langchain/document";
+
+async function loadDocuments() {
+  // Load from a text file
+  const textLoader = new TextLoader("path/to/file.txt");
+  const textDocs = await textLoader.load();
+
+  // Load from a PDF (using file path)
+  const pdfLoader = new PDFLoader("example.pdf");
+  const pdfDocs = await pdfLoader.load();
+
+  // Load from a webpage
+  const webLoader = new WebBaseLoader("https://example.com");
+  const webDocs = await webLoader.load();
+
+  // Load from a directory
+  const directoryLoader = new DirectoryLoader(
+    "./data",
+    {
+      ".txt": (path: string) => new TextLoader(path),
+      ".md": (path: string) => new TextLoader(path),
+    },
+    true // Recursive
+  );
+  const dirDocs = await directoryLoader.load();
+
+  return {
+    textDocs,
+    pdfDocs,
+    webDocs,
+    dirDocs,
+  };
+}
+
+loadDocuments().catch(console.error);
+```
+
 #### Text Splitters
 
 Split documents into smaller chunks for processing:
@@ -1363,6 +1407,56 @@ token_splitter = TokenTextSplitter(
     chunk_overlap=20
 )
 token_chunks = token_splitter.split_documents(documents)
+```
+
+```typescript
+// TypeScript equivalent
+import {
+  CharacterTextSplitter,
+  RecursiveCharacterTextSplitter,
+  TokenTextSplitter,
+} from "langchain/text_splitter";
+import { Document } from "langchain/document";
+
+async function splitDocuments(documents: Document[]) {
+  // Basic character-based splitting
+  const textSplitter = new CharacterTextSplitter({
+    separator: "\n\n",
+    chunkSize: 1000,
+    chunkOverlap: 200,
+  });
+  const textChunks = await textSplitter.splitDocuments(documents);
+
+  // More sophisticated recursive splitting
+  const recursiveSplitter = new RecursiveCharacterTextSplitter({
+    chunkSize: 1000,
+    chunkOverlap: 100,
+  });
+  const recursiveChunks = await recursiveSplitter.splitDocuments(documents);
+
+  // Token-based splitting (useful for models with token limits)
+  const tokenSplitter = new TokenTextSplitter({
+    chunkSize: 100,
+    chunkOverlap: 20,
+  });
+  const tokenChunks = await tokenSplitter.splitDocuments(documents);
+
+  return {
+    textChunks,
+    recursiveChunks,
+    tokenChunks,
+  };
+}
+
+// Example usage with sample documents
+const sampleDocs = [
+  new Document({
+    pageContent: "First line\n\nSecond line\n\nThird line",
+    metadata: { source: "example.txt" },
+  }),
+];
+
+splitDocuments(sampleDocs).catch(console.error);
 ```
 
 #### Vector Stores
@@ -1409,6 +1503,84 @@ pinecone_db = Pinecone.from_documents(
 )
 ```
 
+```typescript
+// TypeScript equivalent
+import { OpenAIEmbeddings } from "langchain/embeddings/openai";
+import { FAISS } from "langchain/vectorstores/faiss";
+import { Chroma } from "langchain/vectorstores/chroma";
+import { PineconeStore } from "langchain/vectorstores/pinecone";
+import { PineconeClient } from "@pinecone-database/pinecone";
+import { Document } from "langchain/document";
+
+async function setupVectorStores(documents: Document[]) {
+  // Initialize embeddings
+  const embeddings = new OpenAIEmbeddings();
+
+  // Example with FAISS (local in-memory)
+  const faissStore = await FAISS.fromDocuments(documents, embeddings);
+  
+  // Example with Chroma (persistent storage)
+  const chromaStore = await Chroma.fromDocuments(
+    documents,
+    embeddings,
+    {
+      url: "http://localhost:8000", // Chroma server URL
+      collectionName: "langchain-docs"
+    }
+  );
+  
+  // Example with Pinecone (cloud-based)
+  const pineconeClient = new PineconeClient();
+  await pineconeClient.init({
+    apiKey: "your-api-key",
+    environment: "your-env",
+  });
+  
+  const indexName = "langchain-demo";
+  const indexesList = await pineconeClient.listIndexes();
+  
+  // Create a new index if it doesn't exist
+  if (!indexesList.includes(indexName)) {
+    await pineconeClient.createIndex({
+      createRequest: {
+        name: indexName,
+        dimension: 1536, // OpenAI embeddings dimension
+        metric: "cosine",
+      },
+    });
+    
+    // Wait for index to be ready
+    await new Promise(resolve => setTimeout(resolve, 60000));
+  }
+  
+  const pineconeIndex = pineconeClient.Index(indexName);
+  const pineconeStore = await PineconeStore.fromDocuments(
+    documents,
+    embeddings,
+    {
+      pineconeIndex,
+      namespace: "langchain-namespace",
+    }
+  );
+
+  return {
+    faissStore,
+    chromaStore,
+    pineconeStore,
+  };
+}
+
+// Example usage
+const sampleDocs = [
+  new Document({
+    pageContent: "LangChain is a framework for building LLM applications.",
+    metadata: { source: "intro.md" },
+  }),
+];
+
+setupVectorStores(sampleDocs).catch(console.error);
+```
+
 #### Document Retrievers
 
 Retrieve relevant documents based on queries:
@@ -1434,6 +1606,57 @@ retriever = faiss_db.as_retriever(
     search_kwargs={"k": 5}
 )
 relevant_docs = retriever.get_relevant_documents(query)
+```
+
+```typescript
+// TypeScript equivalent
+async function searchAndRetrieve(vectorStore: any) {
+  const query = "What is LangChain?";
+  
+  // Simple similarity search
+  const similarDocs = await vectorStore.similaritySearch(query);
+  
+  // Similarity search with score
+  const docsWithScores = await vectorStore.similaritySearchWithScore(query);
+  
+  // Maximum marginal relevance search (diverse results)
+  const diverseDocs = await vectorStore.maxMarginalRelevanceSearch(query, {
+    k: 3, // number of documents to return
+    fetchK: 10, // number of documents to fetch before filtering
+  });
+  
+  // Using a retriever
+  const retriever = vectorStore.asRetriever({
+    searchType: "similarity", // or "mmr" or "similarity_score_threshold"
+    searchKwargs: { k: 5 },
+  });
+  
+  const relevantDocs = await retriever.getRelevantDocuments(query);
+  
+  return {
+    similarDocs,
+    docsWithScores,
+    diverseDocs,
+    relevantDocs,
+  };
+}
+
+// Example usage with a FAISS store
+async function exampleUsage() {
+  const embeddings = new OpenAIEmbeddings();
+  const docs = [
+    new Document({
+      pageContent: "LangChain is a framework for building LLM applications.",
+      metadata: { source: "intro.md" },
+    }),
+  ];
+  
+  const vectorStore = await FAISS.fromDocuments(docs, embeddings);
+  const results = await searchAndRetrieve(vectorStore);
+  console.log(results);
+}
+
+exampleUsage().catch(console.error);
 ```
 
 #### Real-world Example: Document Q&A System
