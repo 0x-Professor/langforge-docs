@@ -1,59 +1,238 @@
 # LangServer: The Complete Guide
 
 <div class="tip">
-  <strong>🚀 New in v0.1.0</strong>: Enhanced language server protocol support, improved performance, and new code intelligence features.
+  <strong>🚀 New in v0.2.0</strong>: Enhanced LSP support, multi-root workspaces, semantic tokens, and advanced code actions.
 </div>
 
 ## Introduction
 
-LangServer is a language server implementation that provides rich language features for LLM development environments. It implements the [Language Server Protocol (LSP)](https://microsoft.github.io/language-server-protocol/) to provide features like code completion, diagnostics, and documentation on hover across various editors and IDEs.
+LangServer is a high-performance, extensible language server that brings rich language features to your development environment. Built on the [Language Server Protocol (LSP)](https://microsoft.github.io/language-server-protocol/), it provides intelligent code assistance across multiple programming languages with a focus on Python and LLM development workflows.
+
+### Why LangServer?
+
+- **Unified Development Experience**: Consistent features across all supported editors
+- **Lightning Fast**: Optimized for large codebases with thousands of files
+- **AI-Powered**: Integrates with LLMs for advanced code understanding
+- **Extensible**: Built with customization in mind
 
 ### Key Features
 
-- **Code Intelligence**: Smart code completion, signature help, and hover documentation
-- **Real-time Feedback**: Instant diagnostics and error checking
-- **Cross-Editor Support**: Works with VS Code, Vim, Emacs, and more
-- **Extensible**: Easy to customize and extend for specific needs
-- **Performance Optimized**: Built for speed with large codebases
+#### Core Language Features
+- 🎯 **Intelligent Code Completion**
+- 📝 **Signature Help** with parameter information
+- 📚 **Hover Documentation** with rich content support
+- 🔍 **Go to Definition** & **Find References**
+- 🏷 **Semantic Highlighting**
+- 📝 **Code Actions** & **Quick Fixes**
+- 🛠 **Refactoring** support
 
-## Quick Start
+#### Advanced Capabilities
+- 🧠 **AI-Assisted Code Understanding**
+- 🧩 **Plugin System** for custom extensions
+- ⚡ **Incremental Sync** for large files
+- 🔄 **Multi-root Workspace** support
+- 🌐 **Remote Development** ready
 
-### Prerequisites
+## Getting Started
 
-- Python 3.8+
-- Node.js 16+ (for some editor integrations)
-- Your preferred code editor with LSP support
+### System Requirements
 
-### Installation
+- **Python**: 3.8+ (3.10+ recommended)
+- **Node.js**: 16+ (for VS Code extension and web features)
+- **RAM**: Minimum 4GB (8GB+ recommended for large projects)
+- **Disk Space**: 500MB free space
 
+### Installation Options
+
+#### Basic Installation
 ```bash
-# Install the LangServer package
+# Core package
 pip install langserver
 
-# Or install with optional dependencies
-pip install 'langserver[all]'
+# With all optional dependencies
+pip install 'langserver[all]'  # Includes testing, docs, and dev tools
+
+# For AI features (requires API key)
+pip install 'langserver[ai]'
 ```
 
-### Basic Configuration
+#### Development Installation
+```bash
+git clone https://github.com/langserver/langserver.git
+cd langserver
+pip install -e '.[dev]'  # Editable install with dev dependencies
+pre-commit install  # Install git hooks
+```
 
-Create a `pyproject.toml` file in your project root:
+### Configuration
+
+LangServer can be configured through multiple methods (in order of priority):
+
+1. **Editor Settings** (highest priority)
+2. **Command-line Arguments**
+3. **Configuration Files**
+   - `pyproject.toml` (recommended)
+   - `.langserver.toml`
+   - `setup.cfg`
+4. **Environment Variables**
+5. **Default Values** (lowest priority)
+
+#### Basic Configuration
+
+Create a `pyproject.toml` in your project root with the following structure:
 
 ```toml
+[build-system]
+requires = ["setuptools>=42"]
+build-backend = "setuptools.build_meta"
+
 [tool.langserver]
-# Enable/disable specific features
+# Server Configuration
+host = "127.0.0.1"  # Bind address
+port = 2087  # Default port
+log_level = "info"  # debug, info, warning, error
+log_file = ".langserver/langserver.log"  # Relative to workspace root
+
+# Feature Toggles
 enable_completion = true
 enable_hover = true
 enable_diagnostics = true
+enable_formatting = true
+enable_rename = true
+enable_references = true
+enable_workspace_symbols = true
 
-# Configure Python path if needed
-python_path = "./venv/bin/python"
+# Python-specific Settings
+[tool.langserver.python]
+python_path = ".venv/bin/python"  # Path to Python interpreter
+import_strategy = "useBundled"  # or "fromEnvironment"
+venv_path = ".venv"
 
-# Additional import paths
-import_paths = ["src"]
+# Path Configuration
+[tool.langserver.paths]
+source_roots = ["src"]  # Source directories to index
+exclude_patterns = ["**/__pycache__", "**/.git", "**/node_modules"]
 
-# Configure logging
-log_level = "info"
-log_file = "langserver.log"
+# Completion Settings
+[tool.langserver.completion]
+enable_snippets = true
+resolve_eagerly = false
+imports_from_environment = true
+
+# Diagnostic Settings
+[tool.langserver.diagnostics]
+enable = true
+run = "onSave"  # or "onType", "off"
+max_number = 100
+
+# Formatting Settings
+[tool.langserver.formatting]
+provider = "black"  # or "autopep8", "yapf", "none"
+line_length = 88
+
+# AI Features (optional)
+[tool.langserver.ai]
+enabled = true
+model = "gpt-4"  # or "gpt-3.5-turbo", "claude-2"
+api_key = "${OPENAI_API_KEY}"  # Read from environment
+
+# Logging Configuration
+[tool.langserver.logging]
+level = "info"
+path = ".langserver/logs"
+max_size = "10MB"
+backup_count = 3
+
+# Performance Settings
+[tool.langserver.performance]
+max_workers = 4  # Number of worker processes
+max_memory = "2GB"  # Memory limit
+jedi_settings = { extra_paths = ["src"], environment = ".venv" }
+
+# Extension Settings
+[tool.langserver.extensions]
+# Enable/disable specific extensions
+pylsp = true
+pyright = false
+jedi = true
+```
+
+### Configuration Options Explained
+
+#### Core Server Settings
+- `host`/`port`: Network interface and port to bind to
+- `log_level`: Verbosity of logs (debug, info, warning, error)
+- `log_file`: Path to log file (relative to workspace root)
+
+#### Python-specific Settings
+- `python_path`: Path to Python interpreter
+- `import_strategy`: How to handle imports ("useBundled" or "fromEnvironment")
+- `venv_path`: Path to virtual environment
+
+#### Path Configuration
+- `source_roots`: Directories containing source code to index
+- `exclude_patterns`: Glob patterns to exclude from indexing
+
+#### Completion Settings
+- `enable_snippets`: Whether to enable snippet completions
+- `resolve_eagerly`: Resolve completion items immediately
+- `imports_from_environment`: Include symbols from installed packages
+
+#### Diagnostic Settings
+- `enable`: Enable/disable diagnostics
+- `run`: When to run diagnostics ("onSave", "onType", "off")
+- `max_number`: Maximum number of diagnostics to report
+
+#### Formatting Settings
+- `provider`: Code formatter to use ("black", "autopep8", "yapf", "none")
+- `line_length`: Maximum line length for formatting
+
+### Environment Variables
+
+Configuration can also be set via environment variables:
+
+```bash
+# Core Settings
+export LANG_SERVER_HOST="127.0.0.1"
+export LANG_SERVER_PORT=2087
+export LANG_SERVER_LOG_LEVEL="info"
+
+# Python Environment
+export PYTHONPATH="${PYTHONPATH}:${PWD}/src"
+
+# AI Features
+export OPENAI_API_KEY="sk-..."
+
+export LANG_SERVER_CONFIG="pyproject.toml"
+```
+
+### Editor-specific Configuration
+
+#### VS Code
+```json
+{
+    "langserver.python.pythonPath": ".venv/bin/python",
+    "langserver.python.analysis.extraPaths": ["src"],
+    "langserver.formatting.provider": "black"
+}
+```
+
+#### Neovim (with nvim-lspconfig)
+```lua
+require('lspconfig').langserver.setup {
+    cmd = { 'langserver', 'start' },
+    settings = {
+        langserver = {
+            python = {
+                pythonPath = '.venv/bin/python',
+                analysis = {
+                    extraPaths = { 'src' },
+                    typeCheckingMode = 'basic'
+                }
+            }
+        }
+    }
+}
 ```
 
 ### Starting the Server
