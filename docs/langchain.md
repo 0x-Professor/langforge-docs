@@ -1162,6 +1162,77 @@ result = poem_chain({
 print(result["poem"])
 ```
 
+```typescript
+// TypeScript equivalent
+import { ChainValues, BaseChain, ChainInputs } from "langchain/chains";
+import { OpenAI } from "langchain/llms/openai";
+import { PromptTemplate } from "langchain/prompts";
+
+export class CustomChain extends BaseChain {
+  llm: OpenAI;
+  prompt: PromptTemplate;
+  outputKey = "poem";
+
+  constructor(fields: {
+    llm: OpenAI;
+    prompt: PromptTemplate;
+    outputKey?: string;
+  } & ChainInputs) {
+    super(fields);
+    this.llm = fields.llm;
+    this.prompt = fields.prompt;
+    this.outputKey = fields.outputKey ?? this.outputKey;
+  }
+
+  get inputKeys(): string[] {
+    return this.prompt.inputVariables;
+  }
+
+  get outputKeys(): string[] {
+    return [this.outputKey];
+  }
+
+  async _call(values: ChainValues): Promise<ChainValues> {
+    const promptValue = await this.prompt.format(values);
+    const response = await this.llm.call(promptValue);
+    return { [this.outputKey]: response };
+  }
+
+  _chainType(): string {
+    return "custom_poem_chain";
+  }
+}
+
+// Usage
+async function generatePoem() {
+  const llm = new OpenAI({ temperature: 0.9 });
+  
+  const template = `Write a short poem about {topic}.
+Make it {style} and {tone}.`;
+
+  const prompt = new PromptTemplate({
+    template,
+    inputVariables: ["topic", "style", "tone"],
+  });
+
+  const poemChain = new CustomChain({
+    llm,
+    prompt,
+    outputKey: "poem",
+  });
+
+  const result = await poemChain.call({
+    topic: "artificial intelligence",
+    style: "haiku",
+    tone: "whimsical",
+  });
+
+  console.log(result.poem);
+}
+
+generatePoem().catch(console.error);
+```
+
 #### Best Practices for Working with Chains
 
 1. **Chain Composition**
