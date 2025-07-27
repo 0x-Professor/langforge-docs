@@ -1098,6 +1098,595 @@ vector_store.save_local("my_vector_store")
 
 This indexes section provides a comprehensive guide to working with documents in LangChain, from loading and processing to efficient retrieval using vector stores.
 
+### 6. Agents
+
+Agents in LangChain are systems that use a language model to determine a sequence of actions to take. They can use tools, observe the results, and make decisions about what to do next.
+
+#### Agent Types
+
+1. **Zero-shot ReAct Agent**
+   Uses the ReAct framework to decide which tool to use based on the tool's description.
+   
+   ```python
+   from langchain.agents import load_tools, initialize_agent, AgentType
+   from langchain.llms import OpenAI
+   
+   # Initialize the language model
+   llm = OpenAI(temperature=0)
+   
+   # Load some tools
+   tools = load_tools(["serpapi", "llm-math"], llm=llm)
+   
+   # Initialize the agent
+   agent = initialize_agent(
+       tools, 
+       llm, 
+       agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+       verbose=True
+   )
+   
+   # Run the agent
+   agent.run("What was the high temperature in SF yesterday in Fahrenheit? What is that number raised to the .023 power?")
+   ```
+
+2. **Plan-and-Execute Agent**
+   First plans what to do, then executes the sub-tasks.
+   
+   ```python
+   from langchain.agents import load_tools, initialize_agent, AgentType
+   from langchain.llms import OpenAI
+   
+   llm = OpenAI(temperature=0)
+   tools = load_tools(["serpapi", "llm-math"], llm=llm)
+   
+   agent = initialize_agent(
+       tools, 
+       llm, 
+       agent=AgentType.PLAN_AND_EXECUTE,
+       verbose=True
+   )
+   
+   agent.run("Who is Leo DiCaprio's girlfriend? What is her current age raised to the 0.43 power?")
+   ```
+
+3. **Self-ask with Search**
+   Uses a single tool to search for answers to follow-up questions.
+   
+   ```python
+   from langchain.agents import load_tools, initialize_agent, AgentType
+   from langchain.llms import OpenAI
+   
+   llm = OpenAI(temperature=0)
+   tools = load_tools(["self-ask-with-search"], llm=llm)
+   
+   agent = initialize_agent(
+       tools, 
+       llm, 
+       agent=AgentType.SELF_ASK_WITH_SEARCH,
+       verbose=True
+   )
+   
+   agent.run("What is the hometown of the reigning men's U.S. Open champion?")
+   ```
+
+#### Custom Tools
+
+Create your own tools for the agent to use:
+
+```python
+from langchain.tools import BaseTool
+from math import pi
+from typing import Union
+
+class CircumferenceTool(BaseTool):
+    name = "circumference_calculator"
+    description = "Use this tool when you need to calculate a circumference using the radius of a circle."
+    
+    def _run(self, radius: Union[int, float]) -> float:
+        return float(radius) * 2.0 * pi
+    
+    def _arun(self, radius: int):
+        raise NotImplementedError("This tool does not support async")
+
+# Initialize the agent with custom tool
+from langchain.agents import initialize_agent
+from langchain.llms import OpenAI
+
+llm = OpenAI(temperature=0)
+agent = initialize_agent(
+    [CircumferenceTool()], 
+    llm, 
+    agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+    verbose=True
+)
+
+agent.run("What is the circumference of a circle with a radius of 7.5?")
+```
+
+#### Toolkits
+
+Group related tools together in toolkits:
+
+```python
+from langchain.agents.agent_toolkits import create_python_agent
+from langchain.tools.python.tool import PythonREPLTool
+from langchain.llms import OpenAI
+
+agent = create_python_agent(
+    llm=OpenAI(temperature=0, max_tokens=1000),
+    tool=PythonREPLTool(),
+    verbose=True
+)
+
+agent.run("What is the 10th fibonacci number?")
+```
+
+#### Multi-Agent Systems
+
+Create multiple agents that can work together:
+
+```python
+from langchain.agents import Tool
+from langchain.agents import AgentExecutor, create_sql_agent
+from langchain.agents.agent_toolkits import create_conversational_retrieval_agent
+from langchain.llms import OpenAI
+from langchain.utilities import GoogleSearchAPIWrapper
+
+# Create a search tool
+search = GoogleSearchAPIWrapper()
+tools = [
+    Tool(
+        name="Search",
+        func=search.run,
+        description="useful for when you need to answer questions about current events"
+    )
+]
+
+# Create a research agent
+research_agent = initialize_agent(
+    tools, 
+    OpenAI(temperature=0), 
+    agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+    verbose=True
+)
+
+# Create a writing agent
+writing_agent = initialize_agent(
+    [],
+    OpenAI(temperature=0.7),
+    agent=AgentType.CONVERSATIONAL_REACT_DESCRIPTION,
+    verbose=True
+)
+
+# Simulate a conversation between agents
+research_result = research_agent.run("What are the latest developments in AI?")
+writing_prompt = f"Write a short article about the following AI developments: {research_result}"
+article = writing_agent.run(writing_prompt)
+print(article)
+```
+
+#### Best Practices for Working with Agents
+
+1. **Tool Design**
+   - Make tool descriptions clear and specific
+   - Handle errors gracefully in your tools
+   - Include type hints and documentation
+
+2. **Agent Configuration**
+   - Choose the right agent type for your task
+   - Set appropriate temperature (lower for more focused tasks)
+   - Limit the number of steps to prevent excessive API usage
+
+3. **Error Handling**
+   - Implement proper error handling in tools
+   - Add validation for tool inputs
+   - Use try/except blocks to handle potential failures
+
+4. **Performance Optimization**
+   - Cache tool results when possible
+   - Use streaming for long-running operations
+   - Monitor and log agent performance
+
+#### Advanced: Custom Agent with Memory
+
+```python
+from langchain.agents import Tool, AgentExecutor, BaseSingleActionAgent
+from langchain import OpenAI, SerpAPIWrapper
+from langchain.memory import ConversationBufferMemory
+from typing import List, Tuple, Any, Union
+from langchain.schema import AgentAction, AgentFinish
+
+class CustomAgent(BaseSingleActionAgent):
+    @property
+    def input_keys(self):
+        return ["input"]
+    
+    def plan(
+        self, intermediate_steps: List[Tuple[AgentAction, str]], **kwargs
+    ) -> Union[AgentAction, AgentFinish]:
+        # Implement your custom logic here
+        if len(intermediate_steps) == 0:
+            # First step
+            return AgentAction(
+                tool="Search",
+                tool_input={"query": kwargs["input"]},
+                log=""
+            )
+        else:
+            # We've already taken the first step, so we're done
+            return AgentFinish(
+                return_values={"output": intermediate_steps[0][1]},
+                log=intermediate_steps[0][1]
+            )
+    
+    async def aplan(
+        self, intermediate_steps: List[Tuple[AgentAction, str]], **kwargs
+    ) -> Union[AgentAction, AgentFinish]:
+        raise NotImplementedError("Async not implemented")
+
+# Set up the tools
+search = SerpAPIWrapper()
+tools = [
+    Tool(
+        name="Search",
+        func=search.run,
+        description="Useful for searching the web"
+    )
+]
+
+# Initialize the agent
+agent = CustomAgent()
+agent_executor = AgentExecutor.from_agent_and_tools(
+    agent=agent, 
+    tools=tools, 
+    verbose=True,
+    memory=ConversationBufferMemory(memory_key="chat_history")
+)
+
+# Run the agent
+agent_executor.run("What's the weather in San Francisco?")
+```
+
+This agents section provides a comprehensive guide to building intelligent, decision-making applications with LangChain, from basic usage to advanced custom implementations.
+
+### 7. Advanced Topics
+
+This section covers advanced concepts and techniques for working with LangChain in production environments.
+
+#### Custom Components
+
+1. **Custom LLM Wrapper**
+   Create a wrapper for any LLM that follows the LangChain interface:
+
+   ```python
+   from typing import Any, List, Mapping, Optional
+   from langchain.llms.base import LLM
+   from langchain.callbacks.manager import CallbackManagerForLLMRun
+
+   class CustomLLM(LLM):
+       """A custom chat model that echoes the first `n` characters of input."""
+       n: int
+       
+       @property
+       def _llm_type(self) -> str:
+           return "echoing-chat-model"
+       
+       def _call(
+           self,
+           prompt: str,
+           stop: Optional[List[str]] = None,
+           run_manager: Optional[CallbackManagerForLLMRun] = None,
+           **kwargs: Any,
+       ) -> str:
+           if stop is not None:
+               raise ValueError("stop kwargs are not permitted.")
+           return prompt[:self.n]
+       
+       @property
+       def _identifying_params(self) -> Mapping[str, Any]:
+           """Get the identifying parameters."""
+           return {"n": self.n}
+
+   # Usage
+   llm = CustomLLM(n=10)
+   print(llm("This is a test"))  # Output: "This is a "
+   ```
+
+2. **Custom Memory Backend**
+   Implement a custom memory store using Redis:
+
+   ```python
+   import json
+   from typing import Dict, List
+   import redis
+   from langchain.schema import BaseChatMessageHistory
+   from langchain.memory import ConversationBufferMemory
+   from langchain.schema.messages import BaseMessage, _message_to_dict, messages_from_dict
+
+   class RedisChatMessageHistory(BaseChatMessageHistory):
+       """Chat message history stored in a Redis database."""
+       
+       def __init__(self, session_id: str, url: str = "redis://localhost:6379/0"):
+           self.redis_client = redis.Redis.from_url(url=url)
+           self.session_id = session_id
+           self.key = f"chat_messages:{session_id}"
+       
+       @property
+       def messages(self) -> List[BaseMessage]:
+           """Retrieve all messages from Redis."""
+           items = self.redis_client.lrange(self.key, 0, -1)
+           messages = [json.loads(m.decode('utf-8')) for m in items]
+           return messages_from_dict(messages)
+       
+       def add_message(self, message: BaseMessage) -> None:
+           """Add a message to the Redis store."""
+           self.redis_client.rpush(self.key, json.dumps(_message_to_dict(message)))
+       
+       def clear(self) -> None:
+           """Clear all messages from the store."""
+           self.redis_client.delete(self.key)
+   
+   # Usage
+   memory = ConversationBufferMemory(
+       chat_memory=RedisChatMessageHistory(session_id="test_session"),
+       return_messages=True
+   )
+   memory.save_context({"input": "Hi"}, {"output": "Hello!"})
+   print(memory.load_memory_variables({}))
+   ```
+
+#### Performance Optimization
+
+1. **Caching**
+   Implement caching for LLM calls:
+
+   ```python
+   from langchain.cache import InMemoryCache
+   from langchain.globals import set_llm_cache
+   from langchain.llms import OpenAI
+   import langchain
+   
+   # Enable caching
+   set_llm_cache(InMemoryCache())
+   
+   # First call - will make an actual API call
+   llm = OpenAI()
+   print(llm("Tell me a joke"))  # Makes API call
+   
+   # Second call with same input - returns cached result
+   print(llm("Tell me a joke"))  # Returns from cache
+   ```
+
+2. **Batch Processing**
+   Process multiple inputs in parallel:
+
+   ```python
+   from langchain.llms import OpenAI
+   from langchain.callbacks import get_openai_callback
+   import time
+   
+   llm = OpenAI()
+   
+   # Without batching
+   start = time.time()
+   for i in range(5):
+       print(llm(f"Say hello {i}"))
+   print(f"Time without batching: {time.time() - start:.2f}s")
+   
+   # With batching
+   start = time.time()
+   inputs = [f"Say hello {i}" for i in range(5)]
+   results = llm.batch(inputs)
+   for result in results:
+       print(result)
+   print(f"Time with batching: {time.time() - start:.2f}s")
+   ```
+
+3. **Token Usage Tracking**
+   Monitor token usage and costs:
+
+   ```python
+   from langchain.callbacks import get_openai_callback
+   from langchain.llms import OpenAI
+   
+   llm = OpenAI()
+   
+   with get_openai_callback() as cb:
+       result = llm("Tell me a joke")
+       print(result)
+       print(f"Tokens used: {cb.total_tokens}")
+       print(f"Estimated cost: ${cb.total_cost:.6f}")
+   ```
+
+#### Error Handling and Retries
+
+```python
+from langchain.llms import OpenAI
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+)
+import openai
+
+# Configure retry logic
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=4, max=10),
+    retry=retry_if_exception_type(
+        (openai.error.APIError, openai.error.Timeout, openai.error.ServiceUnavailableError)
+    ),
+)
+def reliable_llm_call(prompt: str) -> str:
+    llm = OpenAI(temperature=0.7)
+    return llm(prompt)
+
+try:
+    response = reliable_llm_call("Write a short poem about AI")
+    print(response)
+except Exception as e:
+    print(f"Failed after retries: {str(e)}")
+```
+
+#### Security Best Practices
+
+1. **API Key Management**
+   ```python
+   import os
+   from dotenv import load_dotenv
+   from langchain.llms import OpenAI
+   
+   # Load environment variables from .env file
+   load_dotenv()
+   
+   # Access API key from environment variable
+   llm = OpenAI(openai_api_key=os.getenv("OPENAI_API_KEY"))
+   ```
+
+2. **Input Validation**
+   ```python
+   from pydantic import BaseModel, validator
+   from typing import List
+   
+   class QueryRequest(BaseModel):
+       question: str
+       context: str = ""
+       max_tokens: int = 100
+       
+       @validator('question')
+       def question_not_empty(cls, v):
+           if not v.strip():
+               raise ValueError('Question cannot be empty')
+           return v.strip()
+       
+       @validator('max_tokens')
+       def max_tokens_range(cls, v):
+           if not 1 <= v <= 1000:
+               raise ValueError('max_tokens must be between 1 and 1000')
+           return v
+   
+   # Usage
+   try:
+       request = QueryRequest(question="  ", max_tokens=2000)  # Will raise ValidationError
+   except Exception as e:
+       print(f"Validation error: {e}")
+   ```
+
+#### Monitoring and Logging
+
+```python
+import logging
+from langchain.callbacks import get_openai_callback
+from langchain.llms import OpenAI
+from datetime import datetime
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("langchain_app.log"),
+        logging.StreamHandler()
+    ]
+)
+
+logger = logging.getLogger(__name__)
+
+def log_llm_interaction(prompt: str, response: str, metadata: dict = None):
+    """Log LLM interactions with metadata."""
+    log_entry = {
+        "timestamp": datetime.utcnow().isoformat(),
+        "prompt": prompt,
+        "response": response,
+        "metadata": metadata or {}
+    }
+    logger.info(f"LLM Interaction: {log_entry}")
+
+# Example usage
+llm = OpenAI()
+with get_openai_callback() as cb:
+    prompt = "Tell me about LangChain"
+    response = llm(prompt)
+    
+    # Log the interaction
+    log_llm_interaction(
+        prompt=prompt,
+        response=response,
+        metadata={
+            "model": "text-davinci-003",
+            "tokens_used": cb.total_tokens,
+            "cost": f"${cb.total_cost:.6f}"
+        }
+    )
+```
+
+#### Deployment Considerations
+
+1. **Containerization**
+   Example Dockerfile for a LangChain application:
+   
+   ```dockerfile
+   FROM python:3.9-slim
+   
+   WORKDIR /app
+   
+   # Install system dependencies
+   RUN apt-get update && apt-get install -y \
+       gcc \
+       python3-dev \
+       && rm -rf /var/lib/apt/lists/*
+   
+   # Install Python dependencies
+   COPY requirements.txt .
+   RUN pip install --no-cache-dir -r requirements.txt
+   
+   # Copy application code
+   COPY . .
+   
+   # Set environment variables
+   ENV PYTHONUNBUFFERED=1
+   ENV PORT=8000
+   
+   # Run the application
+   CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+   ```
+
+2. **Scaling**
+   - Use async/await for I/O-bound operations
+   - Implement rate limiting
+   - Use a task queue (Celery, RQ) for long-running tasks
+   - Consider using a distributed cache (Redis, Memcached)
+
+#### Testing LangChain Applications
+
+```python
+import unittest
+from unittest.mock import MagicMock, patch
+from langchain.llms import OpenAI
+from your_app import process_with_llm
+
+class TestLangChainApp(unittest.TestCase):
+    
+    @patch('langchain.llms.OpenAI')
+    def test_process_with_llm(self, mock_llm):
+        # Setup mock
+        mock_llm.return_value = MagicMock()
+        mock_llm.return_value.return_value = "Mocked response"
+        
+        # Test the function
+        result = process_with_llm("test input")
+        
+        # Assertions
+        self.assertEqual(result, "Mocked response")
+        mock_llm.return_value.assert_called_once_with("test input")
+
+if __name__ == "__main__":
+    unittest.main()
+```
+
+This advanced topics section provides in-depth knowledge for building production-ready LangChain applications, covering custom components, performance optimization, security, and deployment.
+
 ## Quick Start
 
 ```python
