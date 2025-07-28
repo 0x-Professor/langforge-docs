@@ -5,11 +5,25 @@ const compression = require('compression');
 const morgan = require('morgan');
 const path = require('path');
 const fs = require('fs');
+const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
+
+// Import professional services
+const SearchService = require('./services/SearchService');
+const AnalyticsService = require('./services/AnalyticsService');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
+
+// Initialize services
+const searchService = new SearchService();
+const analyticsService = new AnalyticsService();
+
+// Initialize search service on startup
+searchService.initialize().catch(error => {
+  console.error('Failed to initialize search service:', error);
+});
 
 // Security middleware
 app.use(helmet({
@@ -49,6 +63,32 @@ const rateLimiter = new RateLimiterMemory({
   duration: process.env.RATE_LIMIT_WINDOW_MS || 900, // 15 minutes
 });
 
+// Session tracking middleware
+app.use((req, res, next) => {
+  // Generate or retrieve session ID
+  let sessionId = req.headers['x-session-id'] || req.query.sessionId;
+  if (!sessionId) {
+    sessionId = uuidv4();
+    res.setHeader('x-session-id', sessionId);
+  }
+  
+  req.sessionId = sessionId;
+  
+  // Track page view for HTML requests
+  if (req.method === 'GET' && req.accepts('html')) {
+    analyticsService.trackPageView({
+      sessionId: req.sessionId,
+      page: req.path,
+      referrer: req.get('Referrer'),
+      userAgent: req.get('User-Agent'),
+      ip: req.ip,
+      country: req.get('CF-IPCountry') // Cloudflare header
+    });
+  }
+  
+  next();
+});
+
 app.use(async (req, res, next) => {
   try {
     await rateLimiter.consume(req.ip);
@@ -78,36 +118,171 @@ app.get('/api/sitemap', (req, res) => {
   res.send(sitemap);
 });
 
-// Search endpoint
-app.get('/api/search', (req, res) => {
-  const query = req.query.q;
-  if (!query) {
-    return res.status(400).json({ error: 'Query parameter required' });
+// Enhanced search endpoint with professional service
+app.get('/api/search', async (req, res) => {
+  try {
+    const { q: query, category, limit = 10, suggestions = false } = req.query;
+    
+    if (!query) {
+      return res.status(400).json({ error: 'Query parameter required' });
+    }
+
+    // Track search
+    analyticsService.trackSearch({
+      sessionId: req.sessionId,
+      query,
+      page: req.get('Referer') || 'unknown'
+    });
+
+    if (suggestions === 'true') {
+      const suggestions = searchService.getSuggestions(query, parseInt(limit));
+      return res.json({ suggestions });
+    }
+
+    const results = searchService.search(query, {
+      limit: parseInt(limit),
+      category,
+      includeContent: true
+    });
+
+    // Track search results
+    analyticsService.trackSearch({
+      sessionId: req.sessionId,
+      query,
+      results: results.length,
+      page: req.get('Referer') || 'unknown'
+    });
+
+    res.json({ 
+      query,
+      results,
+      total: results.length,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Search error:', error);
+    res.status(500).json({ error: 'Search service unavailable' });
   }
-  
-  // Implement search logic here
-  const results = searchDocumentation(query);
-  res.json({ results });
 });
 
-// Analytics endpoint
+// Enhanced analytics endpoint
 app.post('/api/analytics', (req, res) => {
-  const { event, page, data } = req.body;
-  
-  // Log analytics data (implement your analytics service)
-  console.log('Analytics:', { event, page, data, timestamp: new Date().toISOString() });
-  
-  res.json({ status: 'recorded' });
+  try {
+    const { event, page, data = {} } = req.body;
+    
+    if (!event) {
+      return res.status(400).json({ error: 'Event type required' });
+    }
+
+    // Add session context
+    const eventData = {
+      ...data,
+      sessionId: req.sessionId,
+      page: page || req.get('Referer'),
+      userAgent: req.get('User-Agent'),
+      ip: req.ip
+    };
+
+    analyticsService.trackEvent(event, eventData);
+    
+    res.json({ status: 'recorded', timestamp: new Date().toISOString() });
+  } catch (error) {
+    console.error('Analytics error:', error);
+    res.status(500).json({ error: 'Analytics service unavailable' });
+  }
 });
 
-// Feedback endpoint
+// Enhanced feedback endpoint
 app.post('/api/feedback', (req, res) => {
-  const { page, rating, comment, email } = req.body;
-  
-  // Store feedback (implement your feedback storage)
-  console.log('Feedback:', { page, rating, comment, email, timestamp: new Date().toISOString() });
-  
-  res.json({ status: 'received', message: 'Thank you for your feedback!' });
+  try {
+    const { page, rating, comment, email, category } = req.body;
+    
+    if (!rating) {
+      return res.status(400).json({ error: 'Rating is required' });
+    }
+
+    analyticsService.trackFeedback({
+      sessionId: req.sessionId,
+      page: page || req.get('Referer'),
+      rating: parseInt(rating),
+      comment,
+      email,
+      category
+    });
+    
+    res.json({ 
+      status: 'received', 
+      message: 'Thank you for your feedback!',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Feedback error:', error);
+    res.status(500).json({ error: 'Feedback service unavailable' });
+  }
+});
+
+// New analytics dashboard endpoint (for internal use)
+app.get('/api/analytics/dashboard', async (req, res) => {
+  try {
+    // Basic authentication check (implement proper auth in production)
+    const authHeader = req.headers.authorization;
+    if (!authHeader || authHeader !== `Bearer ${process.env.ADMIN_TOKEN}`) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const days = parseInt(req.query.days) || 30;
+    const dashboardData = await analyticsService.getDashboardData(days);
+    
+    res.json(dashboardData);
+  } catch (error) {
+    console.error('Dashboard error:', error);
+    res.status(500).json({ error: 'Dashboard service unavailable' });
+  }
+});
+
+// Search suggestions endpoint
+app.get('/api/search/suggestions', (req, res) => {
+  try {
+    const { q: query, limit = 5 } = req.query;
+    
+    if (!query || query.length < 2) {
+      return res.json({ suggestions: [] });
+    }
+
+    const suggestions = searchService.getSuggestions(query, parseInt(limit));
+    res.json({ suggestions });
+  } catch (error) {
+    console.error('Suggestions error:', error);
+    res.json({ suggestions: [] });
+  }
+});
+
+// Popular searches endpoint
+app.get('/api/search/popular', (req, res) => {
+  try {
+    const popular = searchService.getPopularSearches();
+    res.json({ popular });
+  } catch (error) {
+    console.error('Popular searches error:', error);
+    res.json({ popular: [] });
+  }
+});
+
+// Search index rebuild endpoint (for admin use)
+app.post('/api/search/rebuild', async (req, res) => {
+  try {
+    // Basic authentication check
+    const authHeader = req.headers.authorization;
+    if (!authHeader || authHeader !== `Bearer ${process.env.ADMIN_TOKEN}`) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    await searchService.rebuildIndex();
+    res.json({ status: 'rebuilt', timestamp: new Date().toISOString() });
+  } catch (error) {
+    console.error('Rebuild error:', error);
+    res.status(500).json({ error: 'Failed to rebuild search index' });
+  }
 });
 
 // Catch-all handler for SPA
@@ -150,66 +325,6 @@ ${pages.map(page => `  <url>
 </urlset>`;
   
   return sitemap;
-}
-
-function searchDocumentation(query) {
-  // Simple file-based search implementation
-  // In production, use Algolia, Elasticsearch, or similar
-  const results = [];
-  const docsPath = path.join(__dirname, 'docs');
-  
-  try {
-    const files = getAllMarkdownFiles(docsPath);
-    for (const file of files) {
-      const content = fs.readFileSync(file, 'utf8');
-      if (content.toLowerCase().includes(query.toLowerCase())) {
-        const relativePath = path.relative(docsPath, file);
-        const title = extractTitle(content);
-        results.push({
-          title,
-          path: `/docs/${relativePath.replace(/\.md$/, '')}`,
-          excerpt: extractExcerpt(content, query)
-        });
-      }
-    }
-  } catch (error) {
-    console.error('Search error:', error);
-  }
-  
-  return results.slice(0, 10); // Limit results
-}
-
-function getAllMarkdownFiles(dir) {
-  const files = [];
-  const items = fs.readdirSync(dir);
-  
-  for (const item of items) {
-    const fullPath = path.join(dir, item);
-    const stat = fs.statSync(fullPath);
-    
-    if (stat.isDirectory()) {
-      files.push(...getAllMarkdownFiles(fullPath));
-    } else if (item.endsWith('.md')) {
-      files.push(fullPath);
-    }
-  }
-  
-  return files;
-}
-
-function extractTitle(content) {
-  const match = content.match(/^#\s+(.+)$/m);
-  return match ? match[1] : 'Untitled';
-}
-
-function extractExcerpt(content, query) {
-  const lines = content.split('\n');
-  for (const line of lines) {
-    if (line.toLowerCase().includes(query.toLowerCase())) {
-      return line.substring(0, 150) + '...';
-    }
-  }
-  return content.substring(0, 150) + '...';
 }
 
 // Graceful shutdown
