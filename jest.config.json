@@ -1,0 +1,28 @@
+{
+  "testEnvironment": "node",
+  "collectCoverage": true,
+  "coverageDirectory": "coverage",
+  "coverageReporters": ["text", "lcov", "html"],
+  "coverageThreshold": {
+    "global": {
+      "branches": 80,
+      "functions": 80,
+      "lines": 80,
+      "statements": 80
+    }
+  },
+  "testMatch": [
+    "**/__tests__/**/*.(js|ts)",
+    "**/*.(test|spec).(js|ts)"
+  ],
+  "collectCoverageFrom": [
+    "**/*.{js,ts}",
+    "!**/node_modules/**",
+    "!**/coverage/**",
+    "!**/dist/**",
+    "!jest.config.js",
+    "!webpack.config.js"
+  ],
+  "setupFilesAfterEnv": ["<rootDir>/tests/setup.js"],
+  "verbose": true
+}
