@@ -286,6 +286,69 @@ print(f"Math: {math_result}")
 print(f"General: {general_result}")
 ```
 
+```typescript
+// TypeScript equivalent
+import { PromptTemplate } from "@langchain/core/prompts";
+import { ChatOpenAI } from "@langchain/openai";
+import { StringOutputParser } from "@langchain/core/output_parsers";
+import { RunnableBranch } from "@langchain/core/runnables";
+
+async function conditionalChains() {
+  // Define specialized chains
+  const physicsChain = PromptTemplate.fromTemplate(
+    "You are a physics professor. Answer this physics question: {question}"
+  ).pipe(new ChatOpenAI({ 
+    temperature: 0,
+    openAIApiKey: process.env.OPENAI_API_KEY,
+  })).pipe(new StringOutputParser());
+
+  const mathChain = PromptTemplate.fromTemplate(
+    "You are a mathematician. Answer this math question: {question}"
+  ).pipe(new ChatOpenAI({ 
+    temperature: 0,
+    openAIApiKey: process.env.OPENAI_API_KEY,
+  })).pipe(new StringOutputParser());
+
+  const generalChain = PromptTemplate.fromTemplate(
+    "Answer this general question: {question}"
+  ).pipe(new ChatOpenAI({ 
+    temperature: 0,
+    openAIApiKey: process.env.OPENAI_API_KEY,
+  })).pipe(new StringOutputParser());
+
+  // Create conditional routing functions
+  const isPhysicsQuestion = (x: { question: string }) => {
+    const keywords = ["physics", "force", "energy", "quantum", "particle"];
+    return keywords.some(word => x.question.toLowerCase().includes(word));
+  };
+
+  const isMathQuestion = (x: { question: string }) => {
+    const keywords = ["calculate", "equation", "solve", "math", "algebra"];
+    return keywords.some(word => x.question.toLowerCase().includes(word));
+  };
+
+  // Create the routing chain
+  const routerChain = RunnableBranch.from([
+    [isPhysicsQuestion, physicsChain],
+    [isMathQuestion, mathChain],
+    generalChain, // default
+  ]);
+
+  // Test the router
+  const [physicsResult, mathResult, generalResult] = await Promise.all([
+    routerChain.invoke({ question: "What is the speed of light?" }),
+    routerChain.invoke({ question: "What is 25 * 4?" }),
+    routerChain.invoke({ question: "What is the capital of France?" })
+  ]);
+
+  console.log(`Physics: ${physicsResult}`);
+  console.log(`Math: ${mathResult}`);
+  console.log(`General: ${generalResult}`);
+}
+
+conditionalChains().catch(console.error);
+```
+
 ## Transform Chains
 
 Apply transformations to data as it flows through the chain:
@@ -316,6 +379,43 @@ chain = (
 
 result = chain.invoke({"text": "   HELLO    WORLD   how   are YOU?  "})
 print(result)
+```
+
+```typescript
+// TypeScript equivalent
+import { RunnableLambda } from "@langchain/core/runnables";
+import { PromptTemplate } from "@langchain/core/prompts";
+import { ChatOpenAI } from "@langchain/openai";
+
+async function transformChains() {
+  // Preprocessing function
+  const preprocessText = (inputs: { text: string }) => {
+    const text = inputs.text;
+    // Remove extra whitespace and convert to lowercase
+    const cleaned = text.trim().split(/\s+/).join(" ").toLowerCase();
+    return { text: cleaned };
+  };
+
+  // Postprocessing function
+  const postprocessResponse = (response: any) => {
+    const content = typeof response === 'string' ? response : response.content;
+    return { formatted_response: `✨ ${content.trim()} ✨` };
+  };
+
+  // Create a chain with preprocessing and postprocessing
+  const chain = RunnableLambda.from(preprocessText)
+    .pipe(PromptTemplate.fromTemplate("Improve this text: {text}"))
+    .pipe(new ChatOpenAI({
+      model: "gpt-3.5-turbo",
+      openAIApiKey: process.env.OPENAI_API_KEY,
+    }))
+    .pipe(RunnableLambda.from(postprocessResponse));
+
+  const result = await chain.invoke({ text: "   HELLO    WORLD   how   are YOU?  " });
+  console.log(result);
+}
+
+transformChains().catch(console.error);
 ```
 
 ## Error Handling and Fallbacks
@@ -364,6 +464,61 @@ except Exception as e:
     print(f"Error: {e}")
 ```
 
+```typescript
+// TypeScript equivalent
+import { PromptTemplate } from "@langchain/core/prompts";
+import { ChatOpenAI } from "@langchain/openai";
+import { StringOutputParser } from "@langchain/core/output_parsers";
+import { RunnableLambda } from "@langchain/core/runnables";
+
+async function errorHandlingChains() {
+  // Validation function
+  const validateInput = (inputs: { question?: string }) => {
+    if (!inputs.question || inputs.question.trim().length < 3) {
+      throw new Error("Question must be at least 3 characters long");
+    }
+    return inputs;
+  };
+
+  // Fallback function
+  const fallbackResponse = () => {
+    return "I'm sorry, I couldn't process your request. Please try rephrasing your question.";
+  };
+
+  // Create a robust chain with validation and fallbacks
+  const mainChain = RunnableLambda.from(validateInput)
+    .pipe(PromptTemplate.fromTemplate("Answer this question clearly: {question}"))
+    .pipe(new ChatOpenAI({
+      model: "gpt-3.5-turbo",
+      openAIApiKey: process.env.OPENAI_API_KEY,
+    }))
+    .pipe(new StringOutputParser());
+
+  // Add fallback handling
+  const robustChain = mainChain.withFallbacks([
+    RunnableLambda.from(fallbackResponse)
+  ]);
+
+  // Test with valid input
+  try {
+    const result1 = await robustChain.invoke({ question: "What is artificial intelligence?" });
+    console.log(`Success: ${result1}`);
+  } catch (error) {
+    console.log(`Error: ${error}`);
+  }
+
+  // Test with invalid input
+  try {
+    const result2 = await robustChain.invoke({ question: "Hi" });
+    console.log(`Fallback: ${result2}`);
+  } catch (error) {
+    console.log(`Error: ${error}`);
+  }
+}
+
+errorHandlingChains().catch(console.error);
+```
+
 ## Streaming Chains
 
 Enable streaming for real-time output:
@@ -381,6 +536,36 @@ chain = prompt | llm
 # Stream the response
 for chunk in chain.stream({"topic": "a robot learning to paint"}):
     print(chunk.content, end="", flush=True)
+```
+
+```typescript
+// TypeScript equivalent
+import { PromptTemplate } from "@langchain/core/prompts";
+import { ChatOpenAI } from "@langchain/openai";
+
+async function streamingChains() {
+  // Create a streaming chain
+  const prompt = PromptTemplate.fromTemplate("Write a story about {topic}");
+  const llm = new ChatOpenAI({
+    model: "gpt-3.5-turbo",
+    streaming: true,
+    openAIApiKey: process.env.OPENAI_API_KEY,
+  });
+
+  const chain = prompt.pipe(llm);
+
+  // Stream the response
+  const stream = await chain.stream({ topic: "a robot learning to paint" });
+  
+  for await (const chunk of stream) {
+    if (chunk.content) {
+      process.stdout.write(chunk.content);
+    }
+  }
+  process.stdout.write("\n");
+}
+
+streamingChains().catch(console.error);
 ```
 
 ## Async Chains
@@ -414,6 +599,39 @@ async def async_chain_example():
 
 # Run the async example
 # asyncio.run(async_chain_example())
+```
+
+```typescript
+// TypeScript equivalent - naturally async in Node.js
+import { PromptTemplate } from "@langchain/core/prompts";
+import { ChatOpenAI } from "@langchain/openai";
+import { StringOutputParser } from "@langchain/core/output_parsers";
+
+async function asyncChainExample() {
+  // Create async chain
+  const chain = PromptTemplate.fromTemplate("Explain {topic} in one sentence")
+    .pipe(new ChatOpenAI({
+      model: "gpt-3.5-turbo",
+      openAIApiKey: process.env.OPENAI_API_KEY,
+    }))
+    .pipe(new StringOutputParser());
+  
+  // Process multiple topics concurrently
+  const topics = ["quantum computing", "machine learning", "blockchain", "robotics"];
+  
+  // Run all requests concurrently
+  const results = await Promise.all(
+    topics.map(topic => chain.invoke({ topic }))
+  );
+  
+  // Display results
+  topics.forEach((topic, index) => {
+    console.log(`${topic.charAt(0).toUpperCase() + topic.slice(1)}: ${results[index]}`);
+  });
+}
+
+// Run the async example
+asyncChainExample().catch(console.error);
 ```
 
 ## Custom Output Parsers
