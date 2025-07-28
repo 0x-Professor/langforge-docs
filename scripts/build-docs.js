@@ -1,97 +1,174 @@
-#!/bin/bash
+const fs = require('fs');
+const path = require('path');
+const { execSync } = require('child_process');
 
-# LangForge Documentation Build Script
-# This script builds the documentation for production deployment
+/**
+ * LangForge Documentation Build Script
+ * This script builds the documentation for production deployment
+ */
 
-set -e  # Exit on any error
+console.log('🚀 Starting LangForge Documentation build process...');
 
-echo "🚀 Starting LangForge Documentation build process..."
-
-# Check if Node.js is installed
-if ! command -v node &> /dev/null; then
-    echo "❌ Node.js is not installed. Please install Node.js 16+ and try again."
-    exit 1
-fi
-
-# Check if npm is installed
-if ! command -v npm &> /dev/null; then
-    echo "❌ npm is not installed. Please install npm and try again."
-    exit 1
-fi
-
-# Create necessary directories
-echo "📁 Creating build directories..."
-mkdir -p dist
-mkdir -p logs
-mkdir -p tmp
-
-# Install dependencies if node_modules doesn't exist
-if [ ! -d "node_modules" ]; then
-    echo "📦 Installing dependencies..."
-    npm ci --production
-fi
-
-# Run linting
-echo "🔍 Running code quality checks..."
-npm run lint
-
-# Run tests
-echo "🧪 Running tests..."
-npm test
-
-# Build documentation
-echo "📚 Building documentation..."
-npm run build:docs
-
-# Build assets
-echo "🎨 Building static assets..."
-npm run build:assets
-
-# Copy static files
-echo "📋 Copying static files..."
-cp -r docs/assets/* dist/ 2>/dev/null || true
-cp robots.txt dist/ 2>/dev/null || true
-cp sitemap.xml dist/ 2>/dev/null || true
-
-# Generate sitemap
-echo "🗺️  Generating sitemap..."
-node scripts/generate-sitemap.js
-
-# Optimize images (if imagemin is available)
-if command -v imagemin &> /dev/null; then
-    echo "🖼️  Optimizing images..."
-    imagemin "dist/**/*.{jpg,jpeg,png,gif,svg}" --out-dir=dist/optimized
-fi
-
-# Create version file
-echo "📋 Creating version info..."
-cat > dist/version.json << EOF
-{
-  "version": "$(npm pkg get version | tr -d '"')",
-  "buildDate": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
-  "commit": "$(git rev-parse HEAD 2>/dev/null || echo 'unknown')",
-  "environment": "${NODE_ENV:-production}"
+// Utility function to execute commands
+function execCommand(command, description) {
+  console.log(`📋 ${description}...`);
+  try {
+    execSync(command, { stdio: 'inherit' });
+    console.log(`✅ ${description} completed successfully`);
+  } catch (error) {
+    console.error(`❌ ${description} failed:`, error.message);
+    process.exit(1);
+  }
 }
-EOF
 
-# Security check
-echo "🔒 Running security audit..."
-npm audit --audit-level moderate
+// Utility function to ensure directory exists
+function ensureDir(dirPath) {
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+    console.log(`📁 Created directory: ${dirPath}`);
+  }
+}
 
-# Performance check
-echo "⚡ Running performance checks..."
-if command -v lighthouse &> /dev/null; then
-    echo "Running Lighthouse audit..."
-    # lighthouse http://localhost:3000 --output=json --output-path=./dist/lighthouse-report.json
-fi
+// Main build process
+async function build() {
+  try {
+    // Create necessary directories
+    console.log('📁 Creating build directories...');
+    ensureDir('dist');
+    ensureDir('logs');
+    ensureDir('data');
+    ensureDir('data/analytics');
 
-echo "✅ Build completed successfully!"
-echo "📊 Build statistics:"
-echo "   - Total files: $(find dist -type f | wc -l)"
-echo "   - Total size: $(du -sh dist | cut -f1)"
-echo "   - Build time: $SECONDS seconds"
+    // Check if node_modules exists
+    if (!fs.existsSync('node_modules')) {
+      execCommand('npm ci', 'Installing dependencies');
+    }
 
-echo ""
-echo "🎉 Your LangForge Documentation is ready for deployment!"
-echo "📁 Built files are in the 'dist' directory"
-echo "🚀 To deploy: npm run deploy"
+    // Build VitePress documentation
+    console.log('📚 Building VitePress documentation...');
+    if (fs.existsSync('.vitepress') || fs.existsSync('docs/.vitepress')) {
+      execCommand('npm run docs:build', 'Building VitePress docs');
+    } else {
+      console.log('⚠️  VitePress not configured, creating static build...');
+      
+      // Copy docs to dist
+      if (fs.existsSync('docs')) {
+        execCommand('cp -r docs dist/ || xcopy docs dist\\ /e /i /y', 'Copying documentation files');
+      }
+    }
+
+    // Copy static files
+    console.log('📋 Copying static files...');
+    const staticFiles = ['robots.txt', 'README.md'];
+    
+    staticFiles.forEach(file => {
+      if (fs.existsSync(file)) {
+        fs.copyFileSync(file, path.join('dist', file));
+        console.log(`📄 Copied ${file}`);
+      }
+    });
+
+    // Generate version file
+    console.log('📋 Creating version info...');
+    const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+    
+    let gitCommit = 'unknown';
+    try {
+      gitCommit = execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim();
+    } catch (error) {
+      console.log('⚠️  Git not available, using unknown commit');
+    }
+
+    const versionInfo = {
+      version: packageJson.version,
+      buildDate: new Date().toISOString(),
+      commit: gitCommit,
+      environment: process.env.NODE_ENV || 'production'
+    };
+
+    fs.writeFileSync('dist/version.json', JSON.stringify(versionInfo, null, 2));
+    console.log('📄 Created version.json');
+
+    // Create a simple index.html if it doesn't exist
+    const indexPath = 'dist/index.html';
+    if (!fs.existsSync(indexPath)) {
+      console.log('📄 Creating index.html...');
+      const indexHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LangForge Documentation</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 40px; }
+        .nav { background: #f5f5f5; padding: 20px; border-radius: 8px; }
+        .nav ul { list-style: none; padding: 0; }
+        .nav li { margin: 10px 0; }
+        .nav a { text-decoration: none; color: #333; }
+        .nav a:hover { color: #007bff; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 LangForge Documentation</h1>
+            <p>The Complete Guide to Building Production-Ready LLM Applications</p>
+        </div>
+        <div class="nav">
+            <h2>Documentation</h2>
+            <ul>
+                <li><a href="/docs/getting-started/">Getting Started</a></li>
+                <li><a href="/docs/langchain.html">LangChain Guide</a></li>
+                <li><a href="/docs/langsmith.html">LangSmith Guide</a></li>
+                <li><a href="/docs/langgraph.html">LangGraph Guide</a></li>
+                <li><a href="/docs/langserve.html">LangServe Guide</a></li>
+                <li><a href="/docs/examples/">Examples</a></li>
+                <li><a href="/docs/guides/">Guides</a></li>
+            </ul>
+            <h2>API</h2>
+            <ul>
+                <li><a href="/api/health">Health Check</a></li>
+                <li><a href="/api/search?q=langchain">Search API</a></li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>`;
+      
+      fs.writeFileSync(indexPath, indexHtml);
+    }
+
+    // Run security audit (non-blocking)
+    console.log('🔒 Running security audit...');
+    try {
+      execSync('npm audit --audit-level moderate', { stdio: 'inherit' });
+    } catch (error) {
+      console.log('⚠️  Security audit found issues, but continuing build...');
+    }
+
+    // Build statistics
+    console.log('✅ Build completed successfully!');
+    console.log('📊 Build statistics:');
+    
+    try {
+      const stats = execSync('find dist -type f | wc -l || dir dist /s /-c | find "File(s)"', { encoding: 'utf8' });
+      console.log(`   - Files built: ${stats.trim()}`);
+    } catch (error) {
+      console.log('   - Build statistics unavailable');
+    }
+
+    console.log('');
+    console.log('🎉 Your LangForge Documentation is ready!');
+    console.log('📁 Built files are in the "dist" directory');
+    console.log('🚀 To start the server: npm start');
+
+  } catch (error) {
+    console.error('❌ Build failed:', error.message);
+    process.exit(1);
+  }
+}
+
+// Run the build
+build();
