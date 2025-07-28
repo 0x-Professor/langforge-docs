@@ -1,276 +1,281 @@
 # Contributing to LangForge Documentation
 
-Thank you for your interest in contributing to LangForge Documentation! This guide will help you get started with contributing to our comprehensive documentation platform for the LangChain ecosystem.
+Thank you for your interest in contributing to LangForge Documentation! This guide will help you get started and ensure your contributions align with our standards.
 
-## Table of Contents
+## 🎯 Ways to Contribute
 
-- [Getting Started](#getting-started)
-- [Development Setup](#development-setup)
-- [Contributing Guidelines](#contributing-guidelines)
-- [Code Style](#code-style)
-- [Submitting Changes](#submitting-changes)
-- [Documentation Standards](#documentation-standards)
-- [Community](#community)
+### 📝 **Documentation Improvements**
+- Fix typos, grammar, or formatting issues
+- Add missing examples or clarify existing ones
+- Improve navigation and organization
+- Add new tutorials or guides
+- Translate content to other languages
 
-## Getting Started
+### 💻 **Code Contributions**
+- Fix bugs in the documentation platform
+- Add new features (search, analytics, etc.)
+- Improve performance and accessibility
+- Enhance the build system
+
+### 🐛 **Issue Reporting**
+- Report bugs or broken links
+- Suggest new features or improvements
+- Request new examples or tutorials
+
+## 🚀 Getting Started
 
 ### Prerequisites
-
-Before you begin, ensure you have the following installed:
-- Node.js (version 18 or higher)
-- npm or yarn package manager
+- Node.js 16+ and npm 8+
 - Git
+- Text editor (VS Code recommended)
+- Basic knowledge of Markdown
 
-### Fork and Clone
+### Setup Development Environment
 
-1. Fork the repository on GitHub
-2. Clone your fork locally:
+1. **Fork and clone the repository**
    ```bash
    git clone https://github.com/YOUR_USERNAME/langforge-docs.git
    cd langforge-docs
    ```
 
-3. Add the original repository as upstream:
-   ```bash
-   git remote add upstream https://github.com/0x-Professor/langforge-docs.git
-   ```
-
-## Development Setup
-
-1. Install dependencies:
+2. **Install dependencies**
    ```bash
    npm install
    ```
 
-2. Start the development server:
+3. **Start development server**
    ```bash
    npm run dev
    ```
 
-3. Open your browser and navigate to `http://localhost:5173`
-
-## Contributing Guidelines
-
-### Types of Contributions
-
-We welcome various types of contributions:
-
-- **Documentation improvements**: Fix typos, improve clarity, add examples
-- **New content**: Add new sections, tutorials, or guides
-- **Bug fixes**: Fix broken links, incorrect code examples, or UI issues
-- **Feature enhancements**: Improve existing components or add new functionality
-- **Translations**: Help translate content to other languages
-
-### Before You Start
-
-1. Check existing issues and pull requests to avoid duplicating work
-2. Create an issue to discuss major changes before implementing them
-3. Ensure your contribution aligns with the project's goals and scope
-
-### Branch Naming Convention
-
-Use descriptive branch names that indicate the type of change:
-- `feature/add-langsmith-examples`
-- `fix/broken-navigation-links`
-- `docs/improve-installation-guide`
-- `refactor/update-component-structure`
-
-## Code Style
-
-### TypeScript/React Guidelines
-
-- Use TypeScript for all new components
-- Follow React functional component patterns with hooks
-- Use proper TypeScript types and interfaces
-- Implement proper error handling
-
-### CSS/Styling
-
-- Use Tailwind CSS classes for styling
-- Follow the existing design system and component patterns
-- Ensure responsive design for mobile and desktop
-- Use shadcn/ui components when possible
-
-### Code Formatting
-
-We use ESLint and Prettier for code formatting:
-
-```bash
-# Run linting
-npm run lint
-
-# Format code (if Prettier is configured)
-npm run format
-```
-
-### Component Structure
-
-When creating new components, follow this structure:
-
-```typescript
-import React from 'react';
-import { ComponentProps } from './types';
-
-/**
- * ComponentName - Brief description of what the component does
- * 
- * @param props - Component properties
- * @returns JSX element
- */
-export const ComponentName: React.FC<ComponentProps> = ({ prop1, prop2 }) => {
-  // Component logic here
-  
-  return (
-    <div className="component-wrapper">
-      {/* Component JSX */}
-    </div>
-  );
-};
-```
-
-## Submitting Changes
-
-### Pull Request Process
-
-1. Ensure your code follows the style guidelines
-2. Update documentation if you're changing functionality
-3. Add or update tests if applicable
-4. Ensure the build passes locally:
-   ```bash
-   npm run build
+4. **Open in browser**
+   ```
+   http://localhost:3000
    ```
 
-5. Create a pull request with:
-   - Clear title describing the change
-   - Detailed description of what was changed and why
-   - Screenshots for UI changes
-   - Reference to related issues
+## 📁 Project Structure
 
-### Pull Request Template
-
-```markdown
-## Description
-Brief description of changes made.
-
-## Type of Change
-- [ ] Bug fix
-- [ ] New feature
-- [ ] Documentation update
-- [ ] Performance improvement
-- [ ] Code refactoring
-
-## Testing
-- [ ] Tested locally
-- [ ] Added/updated tests
-- [ ] Verified responsive design
-
-## Screenshots (if applicable)
-Add screenshots to show visual changes.
-
-## Related Issues
-Closes #issue_number
+```
+langforge-docs/
+├── docs/                    # Documentation content
+│   ├── getting-started/     # Beginner guides
+│   ├── examples/           # Code examples
+│   ├── guides/             # How-to guides
+│   └── components/         # Component docs
+├── server.js               # Express server
+├── tests/                  # Test files
+├── .github/               # GitHub workflows
+└── scripts/               # Build scripts
 ```
 
-### Review Process
+## ✍️ Writing Guidelines
 
-1. All pull requests require at least one review
-2. Address feedback promptly and professionally
-3. Keep discussions focused on the code and improvements
-4. Be open to suggestions and alternative approaches
+### Documentation Style
+- **Clear and concise**: Use simple, direct language
+- **Action-oriented**: Start with verbs ("Create", "Build", "Configure")
+- **Code-heavy**: Include working examples for everything
+- **Visual**: Use diagrams, tables, and formatting effectively
 
-## Documentation Standards
-
-### Writing Style
-
-- Use clear, concise language
-- Write in active voice when possible
-- Use proper grammar and spelling
-- Include code examples where helpful
-- Explain complex concepts step-by-step
+### Markdown Standards
+- Use `#` for main headings, `##` for sections, `###` for subsections
+- Include code blocks with proper language highlighting
+- Add alt text for images: `![Alt text](image.png)`
+- Use tables for structured data
+- Include emoji for visual appeal (sparingly)
 
 ### Code Examples
+- **Working code**: All examples must be tested and functional
+- **Complete examples**: Include all necessary imports and setup
+- **Comments**: Explain complex parts
+- **Multiple languages**: Provide Python and TypeScript when possible
 
-- Ensure all code examples are functional and tested
-- Include necessary imports and setup
-- Add comments to explain complex logic
-- Use realistic examples that users might encounter
+Example format:
+```python
+# Install: pip install langchain openai
+from langchain.llms import OpenAI
+from langchain.prompts import PromptTemplate
 
-### Section Structure
+# Initialize the LLM
+llm = OpenAI(temperature=0.7, api_key="your-key")
 
-Each documentation section should include:
+# Create a prompt template
+template = PromptTemplate(
+    input_variables=["topic"],
+    template="Explain {topic} in simple terms"
+)
 
-1. **Overview**: Brief introduction to the topic
-2. **Installation/Setup**: How to get started
-3. **Basic Usage**: Simple examples
-4. **Advanced Features**: More complex use cases
-5. **API Reference**: Detailed parameter descriptions
-6. **Troubleshooting**: Common issues and solutions
+# Generate response
+response = llm(template.format(topic="machine learning"))
+print(response)
+```
 
-### Markdown Guidelines
+## 🔄 Contribution Workflow
 
-- Use proper heading hierarchy (h1, h2, h3, etc.)
-- Include table of contents for long documents
-- Use code blocks with appropriate language highlighting
-- Add alt text for images
-- Use tables for structured data
+### 1. **Create an Issue** (for significant changes)
+- Describe the problem or improvement
+- Discuss approach with maintainers
+- Get approval before starting work
 
-## Community
+### 2. **Create a Feature Branch**
+```bash
+git checkout -b feature/your-feature-name
+```
 
-### Communication
+### 3. **Make Your Changes**
+- Follow our style guidelines
+- Add tests for new functionality
+- Update documentation as needed
 
-- Be respectful and inclusive in all interactions
-- Ask questions if you're unsure about anything
-- Help others when you can
-- Follow the project's code of conduct
+### 4. **Test Your Changes**
+```bash
+npm run lint          # Check code style
+npm test              # Run tests
+npm run build         # Test build process
+```
 
-### Getting Help
+### 5. **Commit Your Changes**
+Use conventional commit format:
+```bash
+git commit -m "docs: add RAG system example"
+git commit -m "fix: resolve broken link in quickstart"
+git commit -m "feat: add search functionality"
+```
 
-If you need help:
+### 6. **Submit a Pull Request**
+- Fill out the PR template completely
+- Link to related issues
+- Add screenshots for UI changes
+- Request review from maintainers
 
-1. Check existing documentation and issues
-2. Ask questions in GitHub discussions
-3. Reach out to maintainers through issues
-4. Join community discussions
+## 📋 Pull Request Checklist
 
-### Recognition
+Before submitting your PR, ensure:
 
-Contributors are recognized in:
-- README.md contributors section
-- Release notes for significant contributions
-- Special mentions for outstanding contributions
+- [ ] Code follows style guidelines (ESLint passes)
+- [ ] All tests pass (`npm test`)
+- [ ] Documentation is updated
+- [ ] Examples are tested and working
+- [ ] No breaking changes (or documented)
+- [ ] PR title follows conventional commits
+- [ ] PR description explains the changes
 
-## Development Tips
+## 🧪 Testing
 
-### Local Testing
+### Running Tests
+```bash
+# Run all tests
+npm test
 
-- Test your changes across different screen sizes
-- Verify all links work correctly
-- Check that code examples run without errors
-- Test navigation and search functionality
+# Run tests in watch mode
+npm run test:watch
 
-### Performance Considerations
+# Run specific test file
+npm test -- tests/api.test.js
+```
 
-- Optimize images before adding them
-- Keep bundle size in mind when adding dependencies
-- Use lazy loading for heavy components
-- Test loading times on slower connections
+### Writing Tests
+- Test all new functionality
+- Include edge cases
+- Use descriptive test names
+- Follow existing test patterns
+
+## 📖 Documentation Types
+
+### **Getting Started**
+- Installation guides
+- Quick start tutorials
+- Basic concepts
+
+### **Examples**
+- Working code samples
+- Step-by-step tutorials
+- Real-world use cases
+
+### **Guides**
+- How-to articles
+- Best practices
+- Troubleshooting
+
+### **Reference**
+- API documentation
+- Configuration options
+- Advanced topics
+
+## 🌍 Translation Guidelines
+
+We welcome translations! Here's how to contribute:
+
+1. **Check existing translations** in the `/docs/translations/` folder
+2. **Create language folder**: `/docs/translations/es/` (for Spanish)
+3. **Translate core pages first**: README, getting-started, basic examples
+4. **Maintain structure**: Keep the same folder structure as English docs
+5. **Update navigation**: Add language links to navigation
+
+## 🎨 Style Guide
+
+### Tone and Voice
+- **Friendly and approachable**: Write like you're helping a colleague
+- **Professional**: Maintain technical accuracy
+- **Encouraging**: Help users feel confident
+- **Inclusive**: Use inclusive language and examples
+
+### Formatting
+- **Headers**: Use sentence case (not title case)
+- **Code**: Always use syntax highlighting
+- **Links**: Use descriptive link text
+- **Lists**: Use parallel structure
+- **Emphasis**: Use **bold** for important terms, *italics* for emphasis
+
+## 🔧 Development Guidelines
+
+### Code Style
+- Follow ESLint configuration
+- Use Prettier for formatting
+- Write self-documenting code
+- Include JSDoc comments for functions
+
+### Performance
+- Optimize images and assets
+- Minimize bundle size
+- Use lazy loading where appropriate
+- Test on mobile devices
 
 ### Accessibility
+- Use semantic HTML
+- Include alt text for images
+- Ensure keyboard navigation works
+- Test with screen readers
 
-- Ensure proper heading structure
-- Add alt text to images
-- Use semantic HTML elements
-- Test with screen readers when possible
-- Maintain good color contrast
+## 🏷️ Issue Labels
 
-## Questions?
+- `bug`: Something isn't working
+- `enhancement`: New feature or improvement
+- `documentation`: Documentation changes
+- `good first issue`: Good for newcomers
+- `help wanted`: Extra attention needed
+- `question`: Further information requested
 
-If you have any questions about contributing, please:
+## 🎉 Recognition
 
-1. Check this guide first
-2. Look through existing issues and discussions
-3. Create a new issue with the "question" label
-4. Reach out to the maintainers
+Contributors are recognized in several ways:
 
-Thank you for contributing to LangForge Documentation! Your efforts help make the LangChain ecosystem more accessible to developers worldwide.
+- **Contributors list**: Added to README.md
+- **Release notes**: Mentioned in release announcements
+- **Hall of fame**: Featured on documentation site
+- **Swag**: LangForge stickers and swag for significant contributions
+
+## 💬 Getting Help
+
+- **Questions**: Open a [GitHub Discussion](https://github.com/0x-Professor/langforge-docs/discussions)
+- **Bug reports**: Create an [issue](https://github.com/0x-Professor/langforge-docs/issues)
+- **Feature requests**: Use our [feature request template](https://github.com/0x-Professor/langforge-docs/issues/new?template=feature_request.md)
+- **Real-time chat**: Join our Discord community
+
+## 📄 License
+
+By contributing, you agree that your contributions will be licensed under the MIT License.
+
+---
+
+Thank you for helping make LangForge Documentation better for everyone! 🚀
 
