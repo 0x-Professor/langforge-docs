@@ -124,7 +124,7 @@ module.exports = {
   output: {
     path: path.resolve(__dirname, 'dist'),
     filename: 'bundle.js',
-    clean: false // Don't clean dist folder completely
+    clean: false
   },
   module: {
     rules: [
@@ -134,26 +134,23 @@ module.exports = {
         use: {
           loader: 'babel-loader',
           options: {
-            presets: ['@babel/preset-env']
+            presets: [
+              ['@babel/preset-env', {
+                targets: {
+                  browsers: ['> 1%', 'last 2 versions']
+                }
+              }]
+            ]
           }
         }
-      },
-      {
-        test: /\.css$/i,
-        use: ['style-loader', 'css-loader'],
-      },
-      {
-        test: /\.(png|svg|jpg|jpeg|gif)$/i,
-        type: 'asset/resource',
-      },
-      {
-        test: /\.(woff|woff2|eot|ttf|otf)$/i,
-        type: 'asset/resource',
       }
     ]
   },
   optimization: {
     minimize: process.env.NODE_ENV === 'production'
   },
-  devtool: process.env.NODE_ENV === 'production' ? false : 'source-map'
+  devtool: process.env.NODE_ENV === 'production' ? false : 'source-map',
+  resolve: {
+    extensions: ['.js', '.json']
+  }
 };
