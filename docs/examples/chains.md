@@ -33,6 +33,36 @@ result = chain.invoke({"product": "colorful socks"})
 print(result)
 ```
 
+```typescript
+// TypeScript equivalent
+import { PromptTemplate } from "@langchain/core/prompts";
+import { ChatOpenAI } from "@langchain/openai";
+import { StringOutputParser } from "@langchain/core/output_parsers";
+
+async function basicChainLCEL() {
+  // Define the prompt template
+  const prompt = PromptTemplate.fromTemplate(
+    "What is a good name for a company that makes {product}?"
+  );
+
+  // Initialize the LLM
+  const llm = new ChatOpenAI({
+    model: "gpt-3.5-turbo",
+    temperature: 0.9,
+    openAIApiKey: process.env.OPENAI_API_KEY,
+  });
+
+  // Create the chain using LCEL
+  const chain = prompt.pipe(llm).pipe(new StringOutputParser());
+
+  // Run the chain
+  const result = await chain.invoke({ product: "colorful socks" });
+  console.log(result);
+}
+
+basicChainLCEL().catch(console.error);
+```
+
 ### Sequential Chains with LCEL
 
 ```python
@@ -67,6 +97,52 @@ full_chain = (
 # Run the chain
 result = full_chain.invoke({"company_type": "eco-friendly clothing"})
 print(result)
+```
+
+```typescript
+// TypeScript equivalent
+import { PromptTemplate } from "@langchain/core/prompts";
+import { ChatOpenAI } from "@langchain/openai";
+import { StringOutputParser } from "@langchain/core/output_parsers";
+import { RunnableSequence } from "@langchain/core/runnables";
+
+async function sequentialChainsLCEL() {
+  // Initialize components
+  const llm = new ChatOpenAI({
+    model: "gpt-3.5-turbo",
+    temperature: 0.9,
+    openAIApiKey: process.env.OPENAI_API_KEY,
+  });
+  const outputParser = new StringOutputParser();
+
+  // Define prompts
+  const namePrompt = PromptTemplate.fromTemplate(
+    "You are a naming consultant. What is a good name for a {company_type} company?"
+  );
+
+  const sloganPrompt = PromptTemplate.fromTemplate(
+    "Create a catchy slogan for this company: {company_name}"
+  );
+
+  // Create sequential chain
+  const nameChain = namePrompt.pipe(llm).pipe(outputParser);
+
+  // Chain the output of the first chain into the second
+  const fullChain = RunnableSequence.from([
+    {
+      company_name: nameChain,
+    },
+    sloganPrompt,
+    llm,
+    outputParser,
+  ]);
+
+  // Run the chain
+  const result = await fullChain.invoke({ company_type: "eco-friendly clothing" });
+  console.log(result);
+}
+
+sequentialChainsLCEL().catch(console.error);
 ```
 
 ### Parallel Chains
@@ -108,6 +184,47 @@ parallel_chain = RunnableParallel(
 result = parallel_chain.invoke({"product": "sustainable water bottles"})
 print(result)
 # Output: {'name': '...', 'description': '...', 'tagline': '...'}
+```
+
+```typescript
+// TypeScript equivalent
+import { PromptTemplate } from "@langchain/core/prompts";
+import { ChatOpenAI } from "@langchain/openai";
+import { StringOutputParser } from "@langchain/core/output_parsers";
+import { RunnableParallel } from "@langchain/core/runnables";
+
+async function parallelChains() {
+  const llm = new ChatOpenAI({
+    model: "gpt-3.5-turbo",
+    openAIApiKey: process.env.OPENAI_API_KEY,
+  });
+
+  // Create parallel chains
+  const nameChain = PromptTemplate.fromTemplate(
+    "Generate a company name for: {product}"
+  ).pipe(llm).pipe(new StringOutputParser());
+
+  const descriptionChain = PromptTemplate.fromTemplate(
+    "Write a brief description for a company that makes: {product}"
+  ).pipe(llm).pipe(new StringOutputParser());
+
+  const taglineChain = PromptTemplate.fromTemplate(
+    "Create a tagline for a company that makes: {product}"
+  ).pipe(llm).pipe(new StringOutputParser());
+
+  // Run chains in parallel
+  const parallelChain = RunnableParallel.from({
+    name: nameChain,
+    description: descriptionChain,
+    tagline: taglineChain,
+  });
+
+  const result = await parallelChain.invoke({ product: "sustainable water bottles" });
+  console.log(result);
+  // Output: { name: '...', description: '...', tagline: '...' }
+}
+
+parallelChains().catch(console.error);
 ```
 
 ## Conditional Chains
