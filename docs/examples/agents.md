@@ -68,6 +68,66 @@ result = agent.run("What's the latest news about AI?")
 print(result)
 ```
 
+```typescript
+// TypeScript equivalent
+import { initializeAgentExecutorWithOptions } from "langchain/agents";
+import { OpenAI } from "langchain/llms/openai";
+import { DynamicTool, Tool } from "langchain/tools";
+import { SerpAPI } from "langchain/tools";
+
+async function basicAgentExample() {
+  // Initialize the language model
+  const llm = new OpenAI({ 
+    temperature: 0,
+    openAIApiKey: process.env.OPENAI_API_KEY,
+  });
+
+  // Set up search tool (using SerpAPI as an alternative to Google Search)
+  const searchTool = new SerpAPI(process.env.SERPAPI_API_KEY, {
+    location: "United States",
+    hl: "en",
+    gl: "us",
+  });
+
+  const tools = [
+    new DynamicTool({
+      name: "Search",
+      description: "Useful for when you need to answer questions about current events",
+      func: async (input: string) => {
+        try {
+          return await searchTool.call(input);
+        } catch (error) {
+          return `Search failed: ${error}`;
+        }
+      },
+    }),
+  ];
+
+  try {
+    // Initialize the agent
+    const agent = await initializeAgentExecutorWithOptions(tools, llm, {
+      agentType: "zero-shot-react-description",
+      verbose: true,
+      maxIterations: 3,
+      returnIntermediateSteps: true,
+    });
+
+    // Run the agent
+    const result = await agent.call({
+      input: "What's the latest news about AI?"
+    });
+    
+    console.log("Agent result:", result.output);
+    return result;
+  } catch (error) {
+    console.error("Agent execution failed:", error);
+    throw error;
+  }
+}
+
+basicAgentExample().catch(console.error);
+```
+
 ## Modern Agent Implementation with LangGraph
 
 For more complex and production-ready agents, use LangGraph:
@@ -159,15 +219,133 @@ result = agent.invoke({
 })
 ```
 
+```typescript
+// TypeScript equivalent using LangGraph
+import { StateGraph, END } from "@langchain/langgraph";
+import { HumanMessage, AIMessage, BaseMessage } from "@langchain/core/messages";
+import { ChatOpenAI } from "@langchain/openai";
+
+// Define the agent state interface
+interface AgentState {
+  messages: BaseMessage[];
+  nextAction?: string;
+}
+
+async function modernAgentWithLangGraph() {
+  // Initialize the language model
+  const llm = new ChatOpenAI({ 
+    model: "gpt-3.5-turbo",
+    openAIApiKey: process.env.OPENAI_API_KEY,
+  });
+
+  // Define tools
+  const searchTool = async (query: string): Promise<string> => {
+    // Your search implementation here
+    return `Search results for: ${query}`;
+  };
+
+  const calculatorTool = async (expression: string): Promise<string> => {
+    try {
+      // Note: eval is dangerous in production, use a proper math parser
+      const result = Function(`"use strict"; return (${expression})`)();
+      return String(result);
+    } catch {
+      return "Error in calculation";
+    }
+  };
+
+  const tools = {
+    search: searchTool,
+    calculator: calculatorTool,
+  };
+
+  // Define agent nodes
+  const callModel = async (state: AgentState): Promise<Partial<AgentState>> => {
+    const messages = state.messages;
+    const response = await llm.invoke(messages);
+    return { messages: [...messages, response] };
+  };
+
+  const callTool = async (state: AgentState): Promise<Partial<AgentState>> => {
+    const lastMessage = state.messages[state.messages.length - 1];
+    let result = "No tool called";
+    
+    if (lastMessage.content.includes("search:")) {
+      const toolInput = lastMessage.content.split("search:")[1]?.trim();
+      if (toolInput) {
+        result = await tools.search(toolInput);
+      }
+    } else if (lastMessage.content.includes("calculate:")) {
+      const toolInput = lastMessage.content.split("calculate:")[1]?.trim();
+      if (toolInput) {
+        result = await tools.calculator(toolInput);
+      }
+    }
+    
+    return {
+      messages: [...state.messages, new HumanMessage(`Tool result: ${result}`)]
+    };
+  };
+
+  const shouldContinue = (state: AgentState): string => {
+    const lastMessage = state.messages[state.messages.length - 1];
+    if (lastMessage.content.includes("FINAL ANSWER")) {
+      return "end";
+    }
+    return "continue";
+  };
+
+  // Build the agent graph
+  const workflow = new StateGraph<AgentState>({
+    channels: {
+      messages: {
+        reducer: (existing: BaseMessage[], updates: BaseMessage[]) => [...existing, ...updates],
+        default: () => [],
+      },
+      nextAction: {
+        default: () => "",
+      },
+    },
+  });
+
+  workflow.addNode("agent", callModel);
+  workflow.addNode("action", callTool);
+
+  workflow.setEntryPoint("agent");
+  workflow.addConditionalEdges("agent", shouldContinue, {
+    continue: "action",
+    end: END,
+  });
+  workflow.addEdge("action", "agent");
+
+  // Compile the agent
+  const agent = workflow.compile();
+
+  try {
+    // Run the agent
+    const result = await agent.invoke({
+      messages: [new HumanMessage("What is 25 * 4 and then search for information about that number?")]
+    });
+    
+    console.log("LangGraph agent result:", result);
+    return result;
+  } catch (error) {
+    console.error("LangGraph agent execution failed:", error);
+    throw error;
+  }
+}
+
+modernAgentWithLangGraph().catch(console.error);
+```
+
 ## Tools
 
 Tools are functions that agents can use to interact with the world. They can be anything from search engines to calculators to custom functions.
 
 ### Built-in Tools
-- `GoogleSearchAPIWrapper`: Perform web searches
-- `DuckDuckGoSearchRun`: Alternative search engine
-- `PythonREPLTool`: Execute Python code
-- `RequestsGetTool`: Make HTTP GET requests
+- `SerpAPI`: Perform web searches
+- `DuckDuckGoSearch`: Alternative search engine
+- `Calculator`: Basic mathematical operations
 - `WikipediaQueryRun`: Query Wikipedia
 
 ### Creating Custom Tools
@@ -222,6 +400,79 @@ result = agent.run("Calculate 15 multiplied by 8")
 print(result)
 ```
 
+```typescript
+// TypeScript equivalent - Creating Custom Tools
+import { Tool } from "langchain/tools";
+import { z } from "zod";
+import { initializeAgentExecutorWithOptions } from "langchain/agents";
+import { OpenAI } from "langchain/llms/openai";
+
+// Define input schema using Zod
+const CalculatorInputSchema = z.object({
+  a: z.number().describe("First number"),
+  b: z.number().describe("Second number"),
+  operation: z.enum(["add", "subtract", "multiply", "divide"]).describe("Operation to perform"),
+});
+
+class CustomCalculatorTool extends Tool {
+  name = "Calculator";
+  description = "Useful for when you need to perform mathematical calculations. Input should be a JSON object with 'a', 'b', and 'operation' fields.";
+
+  async _call(input: string): Promise<string> {
+    try {
+      // Parse the input JSON
+      const parsed = JSON.parse(input);
+      const validated = CalculatorInputSchema.parse(parsed);
+      
+      const operations = {
+        add: (x: number, y: number) => x + y,
+        subtract: (x: number, y: number) => x - y,
+        multiply: (x: number, y: number) => x * y,
+        divide: (x: number, y: number) => y !== 0 ? x / y : "Cannot divide by zero",
+      };
+
+      const result = operations[validated.operation](validated.a, validated.b);
+      return String(result);
+    } catch (error) {
+      return `Error: ${error instanceof Error ? error.message : "Invalid input format"}`;
+    }
+  }
+}
+
+async function customToolExample() {
+  // Create an instance of the tool
+  const calculator = new CustomCalculatorTool();
+
+  try {
+    // Use the tool in an agent
+    const tools = [calculator];
+    const agent = await initializeAgentExecutorWithOptions(
+      tools,
+      new OpenAI({ 
+        temperature: 0,
+        openAIApiKey: process.env.OPENAI_API_KEY,
+      }),
+      {
+        agentType: "zero-shot-react-description",
+        verbose: true,
+      }
+    );
+
+    const result = await agent.call({
+      input: "Calculate 15 multiplied by 8"
+    });
+    
+    console.log("Custom tool result:", result.output);
+    return result;
+  } catch (error) {
+    console.error("Custom tool execution failed:", error);
+    throw error;
+  }
+}
+
+customToolExample().catch(console.error);
+```
+
 ## Tool Integration with Function Calling
 
 For models that support function calling (like OpenAI's GPT models):
@@ -264,6 +515,86 @@ result = agent_executor.invoke({
     "input": "What's the length of the word 'hello' multiplied by 3?"
 })
 print(result["output"])
+```
+
+```typescript
+// TypeScript equivalent - Function Calling
+import { ChatOpenAI } from "@langchain/openai";
+import { DynamicStructuredTool } from "langchain/tools";
+import { createOpenAIFunctionsAgent, AgentExecutor } from "langchain/agents";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { z } from "zod";
+
+async function functionCallingExample() {
+  // Define tools with structured inputs
+  const getWordLengthTool = new DynamicStructuredTool({
+    name: "get_word_length",
+    description: "Returns the length of a word",
+    schema: z.object({
+      word: z.string().describe("The word to measure"),
+    }),
+    func: async ({ word }: { word: string }) => {
+      return word.length.toString();
+    },
+  });
+
+  const multiplyNumbersTool = new DynamicStructuredTool({
+    name: "multiply_numbers",
+    description: "Multiply two numbers together",
+    schema: z.object({
+      a: z.number().describe("First number"),
+      b: z.number().describe("Second number"),
+    }),
+    func: async ({ a, b }: { a: number; b: number }) => {
+      return (a * b).toString();
+    },
+  });
+
+  // Initialize the model with function calling
+  const llm = new ChatOpenAI({
+    model: "gpt-3.5-turbo",
+    temperature: 0,
+    openAIApiKey: process.env.OPENAI_API_KEY,
+  });
+
+  // Create tools list
+  const tools = [getWordLengthTool, multiplyNumbersTool];
+
+  // Create prompt
+  const prompt = ChatPromptTemplate.fromMessages([
+    ["system", "You are a helpful assistant"],
+    ["human", "{input}"],
+    ["placeholder", "{agent_scratchpad}"],
+  ]);
+
+  try {
+    // Create the agent
+    const agent = await createOpenAIFunctionsAgent({
+      llm,
+      tools,
+      prompt,
+    });
+
+    const agentExecutor = new AgentExecutor({
+      agent,
+      tools,
+      verbose: true,
+    });
+
+    // Run the agent
+    const result = await agentExecutor.invoke({
+      input: "What's the length of the word 'hello' multiplied by 3?",
+    });
+
+    console.log("Function calling result:", result.output);
+    return result;
+  } catch (error) {
+    console.error("Function calling execution failed:", error);
+    throw error;
+  }
+}
+
+functionCallingExample().catch(console.error);
 ```
 
 ## Multi-Agent Systems
@@ -356,6 +687,131 @@ result = multi_agent.invoke({
 print("Final Report:", result["final_output"])
 ```
 
+```typescript
+// TypeScript equivalent - Multi-Agent Systems
+import { StateGraph, END } from "@langchain/langgraph";
+import { ChatOpenAI } from "@langchain/openai";
+import { HumanMessage, AIMessage, BaseMessage } from "@langchain/core/messages";
+
+interface MultiAgentState {
+  messages: BaseMessage[];
+  task: string;
+  researchOutput: string;
+  analysisOutput: string;
+  finalOutput: string;
+}
+
+async function multiAgentSystem() {
+  // Initialize different models for different agents
+  const researchLLM = new ChatOpenAI({
+    model: "gpt-3.5-turbo",
+    temperature: 0.7,
+    openAIApiKey: process.env.OPENAI_API_KEY,
+  });
+
+  const analysisLLM = new ChatOpenAI({
+    model: "gpt-4",
+    temperature: 0.3,
+    openAIApiKey: process.env.OPENAI_API_KEY,
+  });
+
+  const researchAgent = async (state: MultiAgentState): Promise<Partial<MultiAgentState>> => {
+    const task = state.task;
+    const prompt = `Research the following topic and provide key information: ${task}`;
+    
+    const response = await researchLLM.invoke([new HumanMessage(prompt)]);
+    
+    return {
+      researchOutput: response.content,
+      messages: [...state.messages, new AIMessage(`Research: ${response.content}`)],
+    };
+  };
+
+  const analysisAgent = async (state: MultiAgentState): Promise<Partial<MultiAgentState>> => {
+    const research = state.researchOutput;
+    const prompt = `Analyze the following research and provide insights: ${research}`;
+    
+    const response = await analysisLLM.invoke([new HumanMessage(prompt)]);
+    
+    return {
+      analysisOutput: response.content,
+      messages: [...state.messages, new AIMessage(`Analysis: ${response.content}`)],
+    };
+  };
+
+  const synthesisAgent = async (state: MultiAgentState): Promise<Partial<MultiAgentState>> => {
+    const research = state.researchOutput;
+    const analysis = state.analysisOutput;
+    
+    const prompt = `
+    Synthesize the following research and analysis into a comprehensive final report:
+    
+    Research: ${research}
+    Analysis: ${analysis}
+    `;
+    
+    const response = await analysisLLM.invoke([new HumanMessage(prompt)]);
+    
+    return {
+      finalOutput: response.content,
+      messages: [...state.messages, new AIMessage(`Final Report: ${response.content}`)],
+    };
+  };
+
+  // Build the multi-agent workflow
+  const workflow = new StateGraph<MultiAgentState>({
+    channels: {
+      messages: {
+        reducer: (existing: BaseMessage[], updates: BaseMessage[]) => [...existing, ...updates],
+        default: () => [],
+      },
+      task: {
+        default: () => "",
+      },
+      researchOutput: {
+        default: () => "",
+      },
+      analysisOutput: {
+        default: () => "",
+      },
+      finalOutput: {
+        default: () => "",
+      },
+    },
+  });
+
+  workflow.addNode("research", researchAgent);
+  workflow.addNode("analysis", analysisAgent);
+  workflow.addNode("synthesis", synthesisAgent);
+
+  workflow.setEntryPoint("research");
+  workflow.addEdge("research", "analysis");
+  workflow.addEdge("analysis", "synthesis");
+  workflow.addEdge("synthesis", END);
+
+  // Compile and run
+  const multiAgent = workflow.compile();
+
+  try {
+    const result = await multiAgent.invoke({
+      messages: [],
+      task: "Impact of artificial intelligence on the job market",
+      researchOutput: "",
+      analysisOutput: "",
+      finalOutput: "",
+    });
+
+    console.log("Final Report:", result.finalOutput);
+    return result;
+  } catch (error) {
+    console.error("Multi-agent system execution failed:", error);
+    throw error;
+  }
+}
+
+multiAgentSystem().catch(console.error);
+```
+
 ## Agent with Memory
 
 Create agents that remember conversation history:
@@ -397,6 +853,63 @@ print(agent.run("What time is it?"))
 print(agent.run("What did I just ask you?"))
 ```
 
+```typescript
+// TypeScript equivalent - Agent with Memory
+import { ConversationBufferMemory } from "langchain/memory";
+import { initializeAgentExecutorWithOptions } from "langchain/agents";
+import { OpenAI } from "langchain/llms/openai";
+import { DynamicTool } from "langchain/tools";
+
+async function agentWithMemory() {
+  // Create memory
+  const memory = new ConversationBufferMemory({
+    memoryKey: "chat_history",
+    returnMessages: true,
+  });
+
+  // Create a simple tool
+  const getCurrentTimeTool = new DynamicTool({
+    name: "CurrentTime",
+    description: "Get the current date and time",
+    func: async () => {
+      return new Date().toLocaleString();
+    },
+  });
+
+  const tools = [getCurrentTimeTool];
+
+  try {
+    // Create agent with memory
+    const agent = await initializeAgentExecutorWithOptions(
+      tools,
+      new OpenAI({ 
+        temperature: 0,
+        openAIApiKey: process.env.OPENAI_API_KEY,
+      }),
+      {
+        agentType: "conversational-react-description",
+        memory,
+        verbose: true,
+      }
+    );
+
+    // Have a conversation
+    const result1 = await agent.call({ input: "What time is it?" });
+    console.log("First response:", result1.output);
+
+    const result2 = await agent.call({ input: "What did I just ask you?" });
+    console.log("Second response:", result2.output);
+
+    return { result1, result2 };
+  } catch (error) {
+    console.error("Agent with memory execution failed:", error);
+    throw error;
+  }
+}
+
+agentWithMemory().catch(console.error);
+```
+
 ## Best Practices
 
 ### 1. Choose the Right Agent Type
@@ -421,6 +934,30 @@ Tool(
 )
 ```
 
+```typescript
+// TypeScript equivalent - Good tool descriptions
+const goodCalculatorTool = new DynamicTool({
+  name: "Calculator",
+  description: "Performs basic arithmetic operations. Input should be a mathematical expression like '2 + 3' or '10 * 5'",
+  func: async (input: string) => {
+    try {
+      // Safe evaluation implementation
+      const result = Function(`"use strict"; return (${input})`)();
+      return String(result);
+    } catch (error) {
+      return "Invalid mathematical expression";
+    }
+  },
+});
+
+// Poor tool description (avoid this)
+const poorCalculatorTool = new DynamicTool({
+  name: "Calculator", 
+  description: "Does math",
+  func: async (input: string) => "42",
+});
+```
+
 ### 3. Handle Errors Gracefully
 ```python
 def safe_tool_function(input_data):
@@ -435,10 +972,55 @@ def safe_tool_function(input_data):
         return f"Unexpected error: {str(e)}"
 ```
 
+```typescript
+// TypeScript equivalent - Error handling
+const safeToolFunction = async (inputData: string): Promise<string> => {
+  try {
+    // Your tool logic here
+    const result = await processData(inputData);
+    return `Success: ${result}`;
+  } catch (error) {
+    if (error instanceof TypeError) {
+      return `Input error: ${error.message}`;
+    }
+    return `Unexpected error: ${error instanceof Error ? error.message : "Unknown error"}`;
+  }
+};
+
+// Helper function for demonstration
+async function processData(data: string): Promise<string> {
+  // Your processing logic
+  return `Processed: ${data}`;
+}
+```
+
 ### 4. Use Memory Effectively
 - **Buffer Memory**: For short conversations
-- **Summary Memory**: For long conversations
+- **Summary Memory**: For long conversations  
 - **Vector Memory**: For semantic search over history
+
+```typescript
+// Different memory types in TypeScript
+import { 
+  ConversationBufferMemory,
+  ConversationSummaryMemory,
+  VectorStoreRetrieverMemory 
+} from "langchain/memory";
+import { OpenAI } from "langchain/llms/openai";
+
+// Buffer Memory - stores full conversation
+const bufferMemory = new ConversationBufferMemory({
+  memoryKey: "chat_history",
+  returnMessages: true,
+});
+
+// Summary Memory - summarizes old conversations
+const summaryMemory = new ConversationSummaryMemory({
+  memoryKey: "chat_history",
+  llm: new OpenAI({ openAIApiKey: process.env.OPENAI_API_KEY }),
+  returnMessages: true,
+});
+```
 
 ### 5. Monitor and Evaluate
 ```python
@@ -454,6 +1036,39 @@ def logged_tool_function(input_data):
     result = process_data(input_data)
     logger.info(f"Tool returned: {result}")
     return result
+```
+
+```typescript
+// TypeScript equivalent - Monitoring and logging
+import { DynamicTool } from "langchain/tools";
+
+const createLoggedTool = (name: string, description: string, toolFunc: (input: string) => Promise<string>) => {
+  return new DynamicTool({
+    name,
+    description,
+    func: async (input: string) => {
+      console.log(`[${new Date().toISOString()}] Tool ${name} called with input:`, input);
+      try {
+        const result = await toolFunc(input);
+        console.log(`[${new Date().toISOString()}] Tool ${name} returned:`, result);
+        return result;
+      } catch (error) {
+        console.error(`[${new Date().toISOString()}] Tool ${name} failed:`, error);
+        throw error;
+      }
+    },
+  });
+};
+
+// Usage
+const loggedSearchTool = createLoggedTool(
+  "Search",
+  "Search for information on the web",
+  async (query: string) => {
+    // Your search implementation
+    return `Search results for: ${query}`;
+  }
+);
 ```
 
 ### 6. Limit Tool Access
@@ -479,4 +1094,40 @@ for test in test_cases:
         print(f"Test failed: {test}")
         print(f"Error: {e}")
         print("---")
+```
+
+```typescript
+// TypeScript equivalent - Testing agent behavior
+async function testAgentBehavior(agent: any) {
+  const testCases = [
+    "Normal question",
+    "Question requiring multiple tools", 
+    "Ambiguous question",
+    "Question with no clear answer"
+  ];
+
+  for (const test of testCases) {
+    try {
+      const result = await agent.call({ input: test });
+      console.log(`Test: ${test}`);
+      console.log(`Result: ${result.output}`);
+      console.log("---");
+    } catch (error) {
+      console.log(`Test failed: ${test}`);
+      console.log(`Error: ${error instanceof Error ? error.message : error}`);
+      console.log("---");
+    }
+  }
+}
+
+// Usage with error handling
+async function runAgentTests() {
+  try {
+    // Initialize your agent here
+    const agent = await initializeAgentExecutorWithOptions(/* ... */);
+    await testAgentBehavior(agent);
+  } catch (error) {
+    console.error("Failed to initialize agent for testing:", error);
+  }
+}
 ```
