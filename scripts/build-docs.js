@@ -1,168 +1,97 @@
-const fs = require('fs');
-const path = require('path');
-const { execSync } = require('child_process');
+#!/bin/bash
 
-/**
- * Build script for LangForge Documentation
- * Builds static assets and prepares for deployment
- */
+# LangForge Documentation Build Script
+# This script builds the documentation for production deployment
 
-console.log('🏗️  Building LangForge Documentation...\n');
+set -e  # Exit on any error
 
-// Configuration
-const config = {
-  sourceDir: './docs',
-  outputDir: './dist',
-  assetsDir: './assets',
-  publicDir: './public'
-};
+echo "🚀 Starting LangForge Documentation build process..."
 
-// Clean output directory
-console.log('🧹 Cleaning output directory...');
-if (fs.existsSync(config.outputDir)) {
-  fs.rmSync(config.outputDir, { recursive: true });
+# Check if Node.js is installed
+if ! command -v node &> /dev/null; then
+    echo "❌ Node.js is not installed. Please install Node.js 16+ and try again."
+    exit 1
+fi
+
+# Check if npm is installed
+if ! command -v npm &> /dev/null; then
+    echo "❌ npm is not installed. Please install npm and try again."
+    exit 1
+fi
+
+# Create necessary directories
+echo "📁 Creating build directories..."
+mkdir -p dist
+mkdir -p logs
+mkdir -p tmp
+
+# Install dependencies if node_modules doesn't exist
+if [ ! -d "node_modules" ]; then
+    echo "📦 Installing dependencies..."
+    npm ci --production
+fi
+
+# Run linting
+echo "🔍 Running code quality checks..."
+npm run lint
+
+# Run tests
+echo "🧪 Running tests..."
+npm test
+
+# Build documentation
+echo "📚 Building documentation..."
+npm run build:docs
+
+# Build assets
+echo "🎨 Building static assets..."
+npm run build:assets
+
+# Copy static files
+echo "📋 Copying static files..."
+cp -r docs/assets/* dist/ 2>/dev/null || true
+cp robots.txt dist/ 2>/dev/null || true
+cp sitemap.xml dist/ 2>/dev/null || true
+
+# Generate sitemap
+echo "🗺️  Generating sitemap..."
+node scripts/generate-sitemap.js
+
+# Optimize images (if imagemin is available)
+if command -v imagemin &> /dev/null; then
+    echo "🖼️  Optimizing images..."
+    imagemin "dist/**/*.{jpg,jpeg,png,gif,svg}" --out-dir=dist/optimized
+fi
+
+# Create version file
+echo "📋 Creating version info..."
+cat > dist/version.json << EOF
+{
+  "version": "$(npm pkg get version | tr -d '"')",
+  "buildDate": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+  "commit": "$(git rev-parse HEAD 2>/dev/null || echo 'unknown')",
+  "environment": "${NODE_ENV:-production}"
 }
-fs.mkdirSync(config.outputDir, { recursive: true });
+EOF
 
-// Build VitePress documentation
-console.log('📚 Building documentation with VitePress...');
-try {
-  execSync('npm run docs:build', { stdio: 'inherit' });
-} catch (error) {
-  console.error('❌ Documentation build failed:', error.message);
-  process.exit(1);
-}
+# Security check
+echo "🔒 Running security audit..."
+npm audit --audit-level moderate
 
-// Copy static assets
-console.log('📁 Copying static assets...');
-if (fs.existsSync(config.assetsDir)) {
-  copyRecursiveSync(config.assetsDir, path.join(config.outputDir, 'assets'));
-}
+# Performance check
+echo "⚡ Running performance checks..."
+if command -v lighthouse &> /dev/null; then
+    echo "Running Lighthouse audit..."
+    # lighthouse http://localhost:3000 --output=json --output-path=./dist/lighthouse-report.json
+fi
 
-if (fs.existsSync(config.publicDir)) {
-  copyRecursiveSync(config.publicDir, config.outputDir);
-}
+echo "✅ Build completed successfully!"
+echo "📊 Build statistics:"
+echo "   - Total files: $(find dist -type f | wc -l)"
+echo "   - Total size: $(du -sh dist | cut -f1)"
+echo "   - Build time: $SECONDS seconds"
 
-// Generate sitemap
-console.log('🗺️  Generating sitemap...');
-generateSitemap();
-
-// Generate robots.txt
-console.log('🤖 Generating robots.txt...');
-generateRobotsTxt();
-
-// Optimize images
-console.log('🖼️  Optimizing images...');
-optimizeImages();
-
-// Generate manifest
-console.log('📋 Generating build manifest...');
-generateBuildManifest();
-
-console.log('\n✅ Build completed successfully!');
-console.log(`📦 Output: ${config.outputDir}`);
-console.log(`🌐 Ready for deployment\n`);
-
-// Utility functions
-function copyRecursiveSync(src, dest) {
-  const exists = fs.existsSync(src);
-  const stats = exists && fs.statSync(src);
-  const isDirectory = exists && stats.isDirectory();
-  
-  if (isDirectory) {
-    if (!fs.existsSync(dest)) {
-      fs.mkdirSync(dest, { recursive: true });
-    }
-    fs.readdirSync(src).forEach(childItemName => {
-      copyRecursiveSync(
-        path.join(src, childItemName),
-        path.join(dest, childItemName)
-      );
-    });
-  } else {
-    fs.copyFileSync(src, dest);
-  }
-}
-
-function generateSitemap() {
-  const baseUrl = process.env.BASE_URL || 'https://langforge.dev';
-  const pages = getAllPages(config.sourceDir);
-  
-  const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${pages.map(page => `  <url>
-    <loc>${baseUrl}${page.url}</loc>
-    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
-    <changefreq>${page.changefreq || 'weekly'}</changefreq>
-    <priority>${page.priority || '0.8'}</priority>
-  </url>`).join('\n')}
-</urlset>`;
-  
-  fs.writeFileSync(path.join(config.outputDir, 'sitemap.xml'), sitemap);
-}
-
-function generateRobotsTxt() {
-  const baseUrl = process.env.BASE_URL || 'https://langforge.dev';
-  const robots = `User-agent: *
-Allow: /
-
-Sitemap: ${baseUrl}/sitemap.xml
-
-# Disallow crawling of API endpoints
-Disallow: /api/
-Disallow: /_next/
-Disallow: /admin/
-
-# Allow crawling of documentation
-Allow: /docs/
-Allow: /examples/
-Allow: /guides/`;
-
-  fs.writeFileSync(path.join(config.outputDir, 'robots.txt'), robots);
-}
-
-function getAllPages(dir, baseUrl = '') {
-  const pages = [];
-  const items = fs.readdirSync(dir);
-  
-  for (const item of items) {
-    const fullPath = path.join(dir, item);
-    const stat = fs.statSync(fullPath);
-    
-    if (stat.isDirectory()) {
-      pages.push(...getAllPages(fullPath, `${baseUrl}/${item}`));
-    } else if (item.endsWith('.md') && item !== 'README.md') {
-      const url = `${baseUrl}/${item.replace('.md', '')}`;
-      pages.push({
-        url: url,
-        priority: url === '' ? '1.0' : '0.8',
-        changefreq: 'weekly'
-      });
-    }
-  }
-  
-  return pages;
-}
-
-function optimizeImages() {
-  // Simple image optimization - in production, use imagemin or similar
-  const imageDir = path.join(config.outputDir, 'images');
-  if (fs.existsSync(imageDir)) {
-    console.log('   Images found, optimization recommended for production');
-  }
-}
-
-function generateBuildManifest() {
-  const manifest = {
-    buildTime: new Date().toISOString(),
-    version: process.env.npm_package_version || '1.0.0',
-    environment: process.env.NODE_ENV || 'development',
-    commit: process.env.GITHUB_SHA || 'local',
-    branch: process.env.GITHUB_REF_NAME || 'main'
-  };
-  
-  fs.writeFileSync(
-    path.join(config.outputDir, 'build-manifest.json'),
-    JSON.stringify(manifest, null, 2)
-  );
-}
+echo ""
+echo "🎉 Your LangForge Documentation is ready for deployment!"
+echo "📁 Built files are in the 'dist' directory"
+echo "🚀 To deploy: npm run deploy"

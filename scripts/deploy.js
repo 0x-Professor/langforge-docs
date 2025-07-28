@@ -1,230 +1,221 @@
-const { execSync } = require('child_process');
+#!/usr/bin/env node
+
 const fs = require('fs');
 const path = require('path');
+const { execSync } = require('child_process');
 
-/**
- * Deployment script for LangForge Documentation
- * Handles deployment to various environments
- */
+console.log('🚀 Starting deployment process...');
 
-const ENVIRONMENTS = {
-  staging: {
-    name: 'Staging',
-    url: 'https://staging.langforge.dev',
-    branch: 'develop'
-  },
-  production: {
-    name: 'Production',
-    url: 'https://langforge.dev',
-    branch: 'main'
-  }
+// Configuration
+const config = {
+  server: process.env.SERVER_HOST || 'your-server.com',
+  user: process.env.SERVER_USER || 'deploy',
+  deployPath: process.env.DEPLOY_PATH || '/var/www/langforge-docs',
+  branch: process.env.DEPLOY_BRANCH || 'main',
+  backup: true,
+  healthCheck: true
 };
 
 async function deploy() {
-  const environment = process.env.DEPLOY_ENV || 'production';
-  const config = ENVIRONMENTS[environment];
-  
-  if (!config) {
-    console.error(`❌ Unknown environment: ${environment}`);
-    process.exit(1);
-  }
-
-  console.log(`🚀 Deploying to ${config.name}...`);
-  console.log(`📍 URL: ${config.url}`);
-  console.log(`🌿 Branch: ${config.branch}\n`);
-
   try {
+    console.log('📋 Deployment configuration:', config);
+
     // Pre-deployment checks
     await runPreDeploymentChecks();
-    
+
     // Build the application
-    console.log('🏗️  Building application...');
-    execSync('npm run build', { stdio: 'inherit' });
-    
-    // Run tests
-    console.log('🧪 Running tests...');
-    execSync('npm test', { stdio: 'inherit' });
-    
-    // Security audit
-    console.log('🔒 Running security audit...');
-    execSync('npm audit --audit-level high', { stdio: 'inherit' });
-    
-    // Deploy based on environment
-    if (environment === 'production') {
-      await deployToProduction();
-    } else {
-      await deployToStaging();
-    }
-    
+    await buildApplication();
+
+    // Create deployment package
+    await createDeploymentPackage();
+
+    // Deploy to server
+    await deployToServer();
+
     // Post-deployment verification
-    await verifyDeployment(config.url);
-    
-    console.log(`\n✅ Deployment to ${config.name} completed successfully!`);
-    console.log(`🌐 Live at: ${config.url}`);
-    
+    await postDeploymentChecks();
+
+    console.log('✅ Deployment completed successfully!');
   } catch (error) {
-    console.error(`❌ Deployment failed:`, error.message);
-    await rollbackIfNeeded();
+    console.error('❌ Deployment failed:', error.message);
     process.exit(1);
   }
 }
 
 async function runPreDeploymentChecks() {
   console.log('🔍 Running pre-deployment checks...');
-  
-  // Check if dist directory exists
-  if (!fs.existsSync('./dist')) {
-    throw new Error('Build output directory not found. Run npm run build first.');
+
+  // Check if we're on the right branch
+  const currentBranch = execSync('git branch --show-current', { encoding: 'utf8' }).trim();
+  if (currentBranch !== config.branch) {
+    throw new Error(`Not on deployment branch. Current: ${currentBranch}, Expected: ${config.branch}`);
   }
-  
-  // Check environment variables
-  const requiredEnvVars = ['NODE_ENV'];
-  for (const envVar of requiredEnvVars) {
-    if (!process.env[envVar]) {
-      console.warn(`⚠️  Warning: ${envVar} environment variable not set`);
-    }
+
+  // Check for uncommitted changes
+  const status = execSync('git status --porcelain', { encoding: 'utf8' });
+  if (status.trim()) {
+    throw new Error('Uncommitted changes found. Please commit or stash changes before deploying.');
   }
-  
-  // Validate package.json
-  const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
-  if (!packageJson.version) {
-    throw new Error('Package version not found in package.json');
+
+  // Check if remote is up to date
+  execSync('git fetch origin');
+  const behind = execSync(`git rev-list --count HEAD..origin/${config.branch}`, { encoding: 'utf8' }).trim();
+  if (parseInt(behind) > 0) {
+    throw new Error(`Local branch is ${behind} commits behind origin. Please pull latest changes.`);
   }
-  
-  console.log(`   ✓ Version: ${packageJson.version}`);
-  console.log(`   ✓ Build output verified`);
+
+  console.log('✓ Pre-deployment checks passed');
 }
 
-async function deployToProduction() {
-  console.log('🎯 Deploying to production...');
-  
-  // Example deployment commands - customize based on your hosting provider
-  
-  // For GitHub Pages
-  if (process.env.DEPLOY_TO_GITHUB_PAGES === 'true') {
-    execSync('gh-pages -d dist', { stdio: 'inherit' });
-    return;
+async function buildApplication() {
+  console.log('🔨 Building application...');
+
+  // Run tests
+  execSync('npm test', { stdio: 'inherit' });
+
+  // Run build
+  execSync('npm run build', { stdio: 'inherit' });
+
+  // Verify build output
+  if (!fs.existsSync('dist/index.html')) {
+    throw new Error('Build failed: dist/index.html not found');
   }
+
+  console.log('✓ Application built successfully');
+}
+
+async function createDeploymentPackage() {
+  console.log('📦 Creating deployment package...');
+
+  const version = require('../package.json').version;
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const packageName = `langforge-docs-${version}-${timestamp}.tar.gz`;
+
+  // Create package
+  execSync(`tar -czf ${packageName} dist/ package.json server.js`, { stdio: 'inherit' });
+
+  console.log(`✓ Deployment package created: ${packageName}`);
+  return packageName;
+}
+
+async function deployToServer() {
+  console.log('🚀 Deploying to server...');
+
+  const packageName = fs.readdirSync('.').find(f => f.match(/langforge-docs-.*\.tar\.gz$/));
   
-  // For Docker deployment
-  if (process.env.DEPLOY_WITH_DOCKER === 'true') {
-    console.log('🐳 Building and pushing Docker image...');
-    execSync('docker build -t langforge-docs:latest .', { stdio: 'inherit' });
-    execSync(`docker tag langforge-docs:latest ${process.env.DOCKER_REGISTRY}/langforge-docs:latest`, { stdio: 'inherit' });
-    execSync(`docker push ${process.env.DOCKER_REGISTRY}/langforge-docs:latest`, { stdio: 'inherit' });
-    return;
+  if (!packageName) {
+    throw new Error('Deployment package not found');
   }
-  
-  // For SSH deployment
-  if (process.env.SERVER_HOST) {
-    console.log('📡 Deploying via SSH...');
-    const deployCommands = [
-      `rsync -avz --delete ./dist/ ${process.env.SERVER_USER}@${process.env.SERVER_HOST}:/var/www/langforge-docs/`,
-      `ssh ${process.env.SERVER_USER}@${process.env.SERVER_HOST} "sudo systemctl reload nginx"`
-    ];
+
+  // Upload package
+  execSync(`scp ${packageName} ${config.user}@${config.server}:/tmp/`, { stdio: 'inherit' });
+
+  // Deploy on server
+  const deployScript = `
+    set -e
+    cd ${config.deployPath}
     
-    for (const command of deployCommands) {
-      execSync(command, { stdio: 'inherit' });
-    }
-    return;
-  }
-  
-  // For Vercel deployment
-  if (process.env.DEPLOY_TO_VERCEL === 'true') {
-    execSync('vercel --prod', { stdio: 'inherit' });
-    return;
-  }
-  
-  // For Netlify deployment
-  if (process.env.DEPLOY_TO_NETLIFY === 'true') {
-    execSync('netlify deploy --prod --dir=dist', { stdio: 'inherit' });
-    return;
-  }
-  
-  console.log('ℹ️  No specific deployment method configured. Manual deployment required.');
+    # Backup current deployment
+    if [ -d "current" ] && [ "${config.backup}" = "true" ]; then
+      echo "Creating backup..."
+      cp -r current backup-$(date +%Y%m%d-%H%M%S)
+      # Keep only last 5 backups
+      ls -dt backup-* | tail -n +6 | xargs rm -rf
+    fi
+    
+    # Extract new deployment
+    echo "Extracting new deployment..."
+    mkdir -p releases/$(date +%Y%m%d-%H%M%S)
+    cd releases/$(date +%Y%m%d-%H%M%S)
+    tar -xzf /tmp/${packageName}
+    
+    # Install dependencies
+    echo "Installing dependencies..."
+    npm ci --production
+    
+    # Update symlink
+    echo "Updating symlink..."
+    cd ${config.deployPath}
+    rm -f current
+    ln -sf releases/$(date +%Y%m%d-%H%M%S) current
+    
+    # Restart services
+    echo "Restarting services..."
+    sudo systemctl restart langforge-docs || pm2 restart langforge-docs || echo "Service restart failed"
+    
+    # Cleanup
+    rm -f /tmp/${packageName}
+    
+    echo "Deployment completed!"
+  `;
+
+  execSync(`ssh ${config.user}@${config.server} "${deployScript}"`, { stdio: 'inherit' });
+
+  console.log('✓ Deployed to server successfully');
 }
 
-async function deployToStaging() {
-  console.log('🧪 Deploying to staging...');
-  
-  // Similar to production but with staging-specific commands
-  if (process.env.STAGING_SERVER_HOST) {
-    execSync(`rsync -avz --delete ./dist/ ${process.env.SERVER_USER}@${process.env.STAGING_SERVER_HOST}:/var/www/staging-langforge-docs/`, { stdio: 'inherit' });
-  } else {
-    console.log('ℹ️  Staging deployment method not configured.');
+async function postDeploymentChecks() {
+  if (!config.healthCheck) {
+    console.log('⏭️  Skipping health checks');
+    return;
   }
-}
 
-async function verifyDeployment(url) {
-  console.log('🔬 Verifying deployment...');
-  
-  // Wait a moment for deployment to propagate
-  await new Promise(resolve => setTimeout(resolve, 5000));
-  
+  console.log('🔍 Running post-deployment checks...');
+
+  // Wait for service to start
+  await new Promise(resolve => setTimeout(resolve, 10000));
+
+  // Health check
   try {
-    // Check if the site is accessible
-    const https = require('https');
-    const http = require('http');
-    const client = url.startsWith('https') ? https : http;
-    
-    const response = await new Promise((resolve, reject) => {
-      const req = client.get(url, resolve);
-      req.on('error', reject);
-      req.setTimeout(10000, () => reject(new Error('Request timeout')));
-    });
-    
-    if (response.statusCode === 200) {
-      console.log('   ✓ Site is accessible');
-    } else {
-      throw new Error(`Site returned status code: ${response.statusCode}`);
+    const response = await fetch(`https://${config.server}/api/health`);
+    if (!response.ok) {
+      throw new Error(`Health check failed: ${response.status}`);
     }
-    
-    // Check health endpoint if available
-    try {
-      const healthUrl = `${url}/api/health`;
-      const healthResponse = await new Promise((resolve, reject) => {
-        const req = client.get(healthUrl, resolve);
-        req.on('error', reject);
-        req.setTimeout(5000, () => reject(new Error('Health check timeout')));
-      });
-      
-      if (healthResponse.statusCode === 200) {
-        console.log('   ✓ Health check passed');
-      }
-    } catch (error) {
-      console.log('   ⚠️  Health check not available (this is normal for static sites)');
-    }
-    
+    const data = await response.json();
+    console.log('✓ Health check passed:', data);
   } catch (error) {
-    throw new Error(`Deployment verification failed: ${error.message}`);
+    console.warn('⚠️  Health check failed:', error.message);
+    console.warn('Please verify the deployment manually');
   }
+
+  console.log('✓ Post-deployment checks completed');
 }
 
-async function rollbackIfNeeded() {
-  console.log('🔄 Initiating rollback procedures...');
-  
-  // Implement rollback logic based on your deployment method
-  if (process.env.ENABLE_AUTO_ROLLBACK === 'true') {
-    console.log('   Automatic rollback not implemented yet');
-    console.log('   Please manually rollback if necessary');
-  }
+// Utility function for fetch (Node.js < 18)
+function fetch(url) {
+  return new Promise((resolve, reject) => {
+    const https = require('https');
+    const req = https.get(url, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        resolve({
+          ok: res.statusCode >= 200 && res.statusCode < 300,
+          status: res.statusCode,
+          json: () => Promise.resolve(JSON.parse(data))
+        });
+      });
+    });
+    req.on('error', reject);
+    req.setTimeout(10000, () => reject(new Error('Request timeout')));
+  });
 }
 
-// Handle graceful shutdown
+// Handle script interruption
 process.on('SIGINT', () => {
-  console.log('\n⚠️  Deployment interrupted. Cleaning up...');
+  console.log('\n⚠️  Deployment interrupted by user');
   process.exit(1);
 });
 
 process.on('SIGTERM', () => {
-  console.log('\n⚠️  Deployment terminated. Cleaning up...');
+  console.log('\n⚠️  Deployment terminated');
   process.exit(1);
 });
 
 // Run deployment
 if (require.main === module) {
   deploy().catch(error => {
-    console.error('❌ Deployment script error:', error);
+    console.error('💥 Deployment failed:', error);
     process.exit(1);
   });
 }

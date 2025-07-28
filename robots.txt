@@ -1,0 +1,30 @@
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://langforge.dev/sitemap.xml
+
+# Crawl delay (be respectful to crawlers)
+Crawl-delay: 1
+
+# Specific directives for search engines
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 0
+
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 1
+
+# Block access to admin/internal areas
+Disallow: /api/
+Disallow: /.env
+Disallow: /admin/
+Disallow: /logs/
+Disallow: /tmp/
+Disallow: /*.json$
+
+# Block common bot paths
+Disallow: /wp-admin/
+Disallow: /wp-content/
+Disallow: /cgi-bin/
