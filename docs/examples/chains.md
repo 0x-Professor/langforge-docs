@@ -55,9 +55,15 @@ async function basicChainLCEL() {
   // Create the chain using LCEL
   const chain = prompt.pipe(llm).pipe(new StringOutputParser());
 
-  // Run the chain
-  const result = await chain.invoke({ product: "colorful socks" });
-  console.log(result);
+  try {
+    // Run the chain
+    const result = await chain.invoke({ product: "colorful socks" });
+    console.log(result);
+    return result;
+  } catch (error) {
+    console.error("Chain execution failed:", error);
+    throw error;
+  }
 }
 
 basicChainLCEL().catch(console.error);
@@ -104,7 +110,7 @@ print(result)
 import { PromptTemplate } from "@langchain/core/prompts";
 import { ChatOpenAI } from "@langchain/openai";
 import { StringOutputParser } from "@langchain/core/output_parsers";
-import { RunnableSequence } from "@langchain/core/runnables";
+import { RunnableSequence, RunnablePassthrough } from "@langchain/core/runnables";
 
 async function sequentialChainsLCEL() {
   // Initialize components
@@ -131,15 +137,22 @@ async function sequentialChainsLCEL() {
   const fullChain = RunnableSequence.from([
     {
       company_name: nameChain,
+      company_type: new RunnablePassthrough(),
     },
     sloganPrompt,
     llm,
     outputParser,
   ]);
 
-  // Run the chain
-  const result = await fullChain.invoke({ company_type: "eco-friendly clothing" });
-  console.log(result);
+  try {
+    // Run the chain
+    const result = await fullChain.invoke({ company_type: "eco-friendly clothing" });
+    console.log(result);
+    return result;
+  } catch (error) {
+    console.error("Sequential chain execution failed:", error);
+    throw error;
+  }
 }
 
 sequentialChainsLCEL().catch(console.error);
@@ -219,9 +232,15 @@ async function parallelChains() {
     tagline: taglineChain,
   });
 
-  const result = await parallelChain.invoke({ product: "sustainable water bottles" });
-  console.log(result);
-  // Output: { name: '...', description: '...', tagline: '...' }
+  try {
+    const result = await parallelChain.invoke({ product: "sustainable water bottles" });
+    console.log(result);
+    // Output: { name: '...', description: '...', tagline: '...' }
+    return result;
+  } catch (error) {
+    console.error("Parallel chain execution failed:", error);
+    throw error;
+  }
 }
 
 parallelChains().catch(console.error);
@@ -334,16 +353,23 @@ async function conditionalChains() {
     generalChain, // default
   ]);
 
-  // Test the router
-  const [physicsResult, mathResult, generalResult] = await Promise.all([
-    routerChain.invoke({ question: "What is the speed of light?" }),
-    routerChain.invoke({ question: "What is 25 * 4?" }),
-    routerChain.invoke({ question: "What is the capital of France?" })
-  ]);
+  try {
+    // Test the router
+    const [physicsResult, mathResult, generalResult] = await Promise.all([
+      routerChain.invoke({ question: "What is the speed of light?" }),
+      routerChain.invoke({ question: "What is 25 * 4?" }),
+      routerChain.invoke({ question: "What is the capital of France?" })
+    ]);
 
-  console.log(`Physics: ${physicsResult}`);
-  console.log(`Math: ${mathResult}`);
-  console.log(`General: ${generalResult}`);
+    console.log(`Physics: ${physicsResult}`);
+    console.log(`Math: ${mathResult}`);
+    console.log(`General: ${generalResult}`);
+    
+    return { physicsResult, mathResult, generalResult };
+  } catch (error) {
+    console.error("Conditional chain execution failed:", error);
+    throw error;
+  }
 }
 
 conditionalChains().catch(console.error);
@@ -411,8 +437,14 @@ async function transformChains() {
     }))
     .pipe(RunnableLambda.from(postprocessResponse));
 
-  const result = await chain.invoke({ text: "   HELLO    WORLD   how   are YOU?  " });
-  console.log(result);
+  try {
+    const result = await chain.invoke({ text: "   HELLO    WORLD   how   are YOU?  " });
+    console.log(result);
+    return result;
+  } catch (error) {
+    console.error("Transform chain execution failed:", error);
+    throw error;
+  }
 }
 
 transformChains().catch(console.error);
@@ -554,15 +586,18 @@ async function streamingChains() {
 
   const chain = prompt.pipe(llm);
 
-  // Stream the response
-  const stream = await chain.stream({ topic: "a robot learning to paint" });
-  
-  for await (const chunk of stream) {
-    if (chunk.content) {
-      process.stdout.write(chunk.content);
+  try {
+    // Stream the response
+    const stream = await chain.stream({ topic: "a robot learning to paint" });
+    
+    for await (const chunk of stream) {
+      process.stdout.write(chunk.content || "");
     }
+    console.log("\n"); // New line after streaming
+  } catch (error) {
+    console.error("Streaming chain execution failed:", error);
+    throw error;
   }
-  process.stdout.write("\n");
 }
 
 streamingChains().catch(console.error);
@@ -619,15 +654,22 @@ async function asyncChainExample() {
   // Process multiple topics concurrently
   const topics = ["quantum computing", "machine learning", "blockchain", "robotics"];
   
-  // Run all requests concurrently
-  const results = await Promise.all(
-    topics.map(topic => chain.invoke({ topic }))
-  );
-  
-  // Display results
-  topics.forEach((topic, index) => {
-    console.log(`${topic.charAt(0).toUpperCase() + topic.slice(1)}: ${results[index]}`);
-  });
+  try {
+    // Run all requests concurrently
+    const results = await Promise.all(
+      topics.map(topic => chain.invoke({ topic }))
+    );
+    
+    // Display results
+    topics.forEach((topic, index) => {
+      console.log(`${topic.charAt(0).toUpperCase() + topic.slice(1)}: ${results[index]}`);
+    });
+    
+    return results;
+  } catch (error) {
+    console.error("Async chain execution failed:", error);
+    throw error;
+  }
 }
 
 // Run the async example
@@ -697,6 +739,73 @@ print("JSON Result:", json_result)
 print("List Result:", list_result)
 ```
 
+```typescript
+// TypeScript equivalent
+import { BaseOutputParser } from "@langchain/core/output_parsers";
+import { PromptTemplate } from "@langchain/core/prompts";
+import { ChatOpenAI } from "@langchain/openai";
+import json5 from "json5";
+
+class JsonOutputParser extends BaseOutputParser {
+  // Parse JSON output from LLM
+  async parse(text: string): Promise<any> {
+    // Extract JSON from the response
+    const jsonMatch = text.match(/\{.*\}/s);
+    if (jsonMatch) {
+      try {
+        return json5.parse(jsonMatch[0]);
+      } catch (error) {
+        return { error: "Invalid JSON format" };
+      }
+    }
+    return { error: "No JSON found in response" };
+  }
+}
+
+class ListOutputParser extends BaseOutputParser {
+  // Parse numbered list output from LLM
+  async parse(text: string): Promise<string[]> {
+    const lines = text.trim().split("\n");
+    const items: string[] = [];
+    for (const line of lines) {
+      // Match numbered list items (1. Item, 2. Item, etc.)
+      const match = line.trim().match(/^(\d+)\.\s*(.+)/);
+      if (match) {
+        items.push(match[2]);
+      }
+    }
+    return items;
+  }
+}
+
+// Use custom parsers
+const jsonChain = PromptTemplate.fromTemplate(
+  "Create a JSON object with information about {topic}. " +
+  "Include name, description, and category fields."
+)
+.pipe(new ChatOpenAI({
+  model: "gpt-3.5-turbo",
+  openAIApiKey: process.env.OPENAI_API_KEY,
+}))
+.pipe(new JsonOutputParser());
+
+const listChain = PromptTemplate.fromTemplate(
+  "List 5 benefits of {topic}. Format as a numbered list."
+)
+.pipe(new ChatOpenAI({
+  model: "gpt-3.5-turbo",
+  openAIApiKey: process.env.OPENAI_API_KEY,
+}))
+.pipe(new ListOutputParser());
+
+// Test the parsers
+const jsonResult = await jsonChain.invoke({ topic: "electric vehicles" });
+const listResult = await listChain.invoke({ topic: "renewable energy" });
+
+console.log("JSON Result:", jsonResult);
+console.log("List Result:", listResult);
+```
+
 ## Retrieval Chains
 
 Combine retrieval with generation for RAG (Retrieval-Augmented Generation):
@@ -737,6 +846,54 @@ result = rag_chain.invoke("What is LangChain?")
 print(result.content)
 ```
 
+```typescript
+// TypeScript equivalent
+import { PromptTemplate } from "@langchain/core/prompts";
+import { ChatOpenAI, OpenAIEmbeddings } from "@langchain/openai";
+import { FAISS } from "langchain-embeddings-faiss";
+import { Document } from "@langchain/core/documents";
+import { RunnablePassthrough } from "@langchain/core/runnables";
+
+async function retrievalChains() {
+  // Sample documents
+  const docs: Document[] = [
+    new Document({ pageContent: "Python is a programming language known for its simplicity." }),
+    new Document({ pageContent: "Machine learning is a subset of artificial intelligence." }),
+    new Document({ pageContent: "LangChain is a framework for building AI applications." }),
+  ];
+
+  // Create vector store
+  const embeddings = new OpenAIEmbeddings();
+  const vectorstore = await FAISS.fromDocuments(docs, embeddings);
+  const retriever = vectorstore.asRetriever();
+
+  // Create RAG chain
+  const formatDocs = (docs: Document[]) => docs.map(doc => doc.pageContent).join("\n\n");
+
+  const ragChain = PromptTemplate.fromTemplate(
+    "Answer the question based on the context:\n\nContext: {context}\n\nQuestion: {question}\n\nAnswer:"
+  )
+  .pipe(new ChatOpenAI({
+    model: "gpt-3.5-turbo",
+    openAIApiKey: process.env.OPENAI_API_KEY,
+  }));
+
+  // Use the RAG chain
+  try {
+    const result = await ragChain.invoke({
+      context: await retriever.invoke("What is LangChain?"),
+      question: "What is LangChain?"
+    });
+    console.log(result.content);
+  } catch (error) {
+    console.error("Retrieval chain execution failed:", error);
+    throw error;
+  }
+}
+
+retrievalChains().catch(console.error);
+```
+
 ## Chain Composition Patterns
 
 ### Map-Reduce Pattern
@@ -772,6 +929,50 @@ reduce_chain = reduce_prompt | ChatOpenAI(model="gpt-3.5-turbo") | StrOutputPars
 
 final_summary = reduce_chain.invoke({"summaries": "\n".join(summaries)})
 print(final_summary)
+```
+
+```typescript
+// TypeScript equivalent
+import { PromptTemplate } from "@langchain/core/prompts";
+import { ChatOpenAI } from "@langchain/openai";
+import { StringOutputParser } from "@langchain/core/output_parsers";
+
+async function mapReducePattern() {
+  // Documents to process
+  const documents = [
+    "Document 1: AI is transforming healthcare...",
+    "Document 2: Machine learning improves diagnosis...",
+    "Document 3: Robots assist in surgery...",
+  ];
+
+  // Map step: Summarize each document
+  const mapPrompt = PromptTemplate.fromTemplate(
+    "Summarize this document in one sentence: {doc}"
+  );
+
+  const mapChain = mapPrompt.pipe(new ChatOpenAI({
+    model: "gpt-3.5-turbo",
+    openAIApiKey: process.env.OPENAI_API_KEY,
+  })).pipe(new StringOutputParser());
+
+  // Process each document
+  const summaries = await Promise.all(documents.map(doc => mapChain.invoke({ doc })));
+
+  // Reduce step: Combine summaries
+  const reducePrompt = PromptTemplate.fromTemplate(
+    "Combine these summaries into a final summary:\n{summaries}"
+  );
+
+  const reduceChain = reducePrompt.pipe(new ChatOpenAI({
+    model: "gpt-3.5-turbo",
+    openAIApiKey: process.env.OPENAI_API_KEY,
+  })).pipe(new StringOutputParser());
+
+  const finalSummary = await reduceChain.invoke({ summaries: summaries.join("\n") });
+  console.log(finalSummary);
+}
+
+mapReducePattern().catch(console.error);
 ```
 
 ### Pipeline Pattern
@@ -815,6 +1016,48 @@ result = pipeline.invoke({
     "text": "Artificial intelligence is revolutionizing healthcare through machine learning algorithms that can analyze medical images, predict patient outcomes, and assist doctors in making more accurate diagnoses."
 })
 print(result)
+```
+
+```typescript
+// TypeScript equivalent
+import { PromptTemplate } from "@langchain/core/prompts";
+import { ChatOpenAI } from "@langchain/openai";
+import { StringOutputParser } from "@langchain/core/output_parsers";
+import { RunnableLambda } from "@langchain/core/runnables";
+
+async function pipelinePattern() {
+  // Step 1: Generate summary
+  const step1 = PromptTemplate.fromTemplate("Summarize this text: {text}")
+    .pipe(new ChatOpenAI({
+      model: "gpt-3.5-turbo",
+      openAIApiKey: process.env.OPENAI_API_KEY,
+    }))
+    .pipe(new StringOutputParser())
+    .pipe(RunnableLambda.from((summary: string) => ({ summary, text: summary })));
+
+  // Step 2: Extract keywords
+  const step2 = RunnableLambda.from((data: { summary: string, text: string }) => {
+    // Simplified keyword extraction
+    const words = data.text.toLowerCase().split(" ");
+    const keywords = words.filter(word => word.length > 5).slice(0, 5);
+    return { summary: data.summary, keywords: keywords.join(", ") };
+  });
+
+  // Step 3: Format output
+  const step3 = RunnableLambda.from((data: { summary: string, keywords: string }) => {
+    return `Summary: ${data.summary}\nKeywords: ${data.keywords}`;
+  });
+
+  // Create pipeline
+  const pipeline = step1.pipe(step2).pipe(step3);
+
+  const result = await pipeline.invoke({
+    text: "Artificial intelligence is revolutionizing healthcare through machine learning algorithms that can analyze medical images, predict patient outcomes, and assist doctors in making more accurate diagnoses."
+  });
+  console.log(result);
+}
+
+pipelinePattern().catch(console.error);
 ```
 
 ## Best Practices
