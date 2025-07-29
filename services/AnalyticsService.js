@@ -261,6 +261,60 @@ class AnalyticsService {
   }
 
   /**
+   * Export data for external analytics tools
+   */
+  async exportData(startDate, endDate, format = 'json') {
+    try {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      const allEvents = [];
+
+      // Collect events from the date range
+      const diffTime = Math.abs(end - start);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      for (let i = 0; i <= diffDays; i++) {
+        const date = new Date(start);
+        date.setDate(date.getDate() + i);
+        const dateStr = date.toISOString().split('T')[0];
+        const filename = path.join(this.dataDir, `analytics-${dateStr}.jsonl`);
+
+        if (fs.existsSync(filename)) {
+          const events = await this.readLogFile(filename);
+          allEvents.push(...events.filter(event => {
+            const eventDate = new Date(event.timestamp);
+            return eventDate >= start && eventDate <= end;
+          }));
+        }
+      }
+
+      if (format === 'csv') {
+        // Convert to CSV format
+        if (allEvents.length === 0) return 'timestamp,type,sessionId,page,query,rating\n';
+        
+        const csvHeader = Object.keys(allEvents[0]).join(',') + '\n';
+        const csvRows = allEvents.map(event => 
+          Object.values(event).map(value => 
+            typeof value === 'string' && value.includes(',') ? `"${value}"` : value
+          ).join(',')
+        ).join('\n');
+        
+        return csvHeader + csvRows;
+      }
+
+      return {
+        exportDate: new Date().toISOString(),
+        dateRange: { start: startDate, end: endDate },
+        totalEvents: allEvents.length,
+        events: allEvents
+      };
+    } catch (error) {
+      console.error('Failed to export data:', error);
+      return null;
+    }
+  }
+
+  /**
    * Private helper methods
    */
   queueEvent(event) {
@@ -355,73 +409,89 @@ class AnalyticsService {
   }
 
   async getUserFlow(days) {
-    // Implementation for user flow analysis
-    return {
-      entryPages: [],
-      exitPages: [],
-      commonPaths: []
-    };
-  }
+    const files = await this.getRecentLogFiles(days);
+    const entryPages = new Map();
+    const exitPages = new Map();
+    const pathSequences = new Map();
 
-  async getPerformanceMetrics(days) {
-    // Implementation for performance metrics
-    return {
-      avgLoadTime: 0,
-      bounceRate: 0,
-      avgSessionDuration: 0
-    };
-  }
+    for (const file of files) {
+      const events = await this.readLogFile(file);
+      const sessions = new Map();
 
-  /**
-   * Export data for external analytics tools
-   */
-  async exportData(startDate, endDate, format = 'json') {
-    // Implementation for data export
-    return null;
-  }
+      // Group events by session
+      for (const event of events) {
+        if (event.type === 'page_view' && event.sessionId) {
+          if (!sessions.has(event.sessionId)) {
+            sessions.set(event.sessionId, []);
+          }
+          sessions.get(event.sessionId).push(event);
+        }
+      }
 
-  /**
-   * Generate analytics report
-   */
-  async generateReport(days = 30) {
-    const data = await this.getDashboardData(days);
-    
-    const report = {
-      generatedAt: new Date().toISOString(),
-      period: `${days} days`,
-      summary: data.summary,
-      insights: {
-        mostPopularPage: data.topPages[0]?.page || 'N/A',
-        topSearchTerm: data.topSearches[0]?.query || 'N/A',
-        userEngagement: data.summary.avgSessionTime > 180 ? 'High' : 'Moderate'
-      },
-      recommendations: this.generateRecommendations(data)
-    };
+      // Analyze each session
+      for (const [sessionId, sessionEvents] of sessions) {
+        if (sessionEvents.length === 0) continue;
 
-    return report;
-  }
+        // Sort by timestamp
+        sessionEvents.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
-  generateRecommendations(data) {
-    const recommendations = [];
-    
-    if (data.topSearches.length > 0) {
-      recommendations.push({
-        type: 'content',
-        message: `Consider creating more content about "${data.topSearches[0].query}" - it's a popular search term`
-      });
-    }
-    
-    if (data.recentFeedback.length > 0) {
-      const avgRating = data.recentFeedback.reduce((sum, f) => sum + f.rating, 0) / data.recentFeedback.length;
-      if (avgRating < 4) {
-        recommendations.push({
-          type: 'improvement',
-          message: 'Recent feedback suggests areas for improvement - review feedback comments'
-        });
+        // Track entry and exit pages
+        const firstPage = sessionEvents[0].page;
+        const lastPage = sessionEvents[sessionEvents.length - 1].page;
+
+        entryPages.set(firstPage, (entryPages.get(firstPage) || 0) + 1);
+        exitPages.set(lastPage, (exitPages.get(lastPage) || 0) + 1);
+
+        // Track common paths for sessions with multiple pages
+        if (sessionEvents.length > 1) {
+          const pathKey = sessionEvents.map(event => event.page).join(' > ');
+          pathSequences.set(pathKey, (pathSequences.get(pathKey) || 0) + 1);
+        }
       }
     }
 
-    return recommendations;
+    const topEntryPages = Array.from(entryPages.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([page, count]) => ({ page, count }))
+      .slice(0, 10);
+
+    const topExitPages = Array.from(exitPages.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([page, count]) => ({ page, count }))
+      .slice(0, 10);
+
+    const topPaths = Array.from(pathSequences.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([path, count]) => ({ path, count }))
+      .slice(0, 10);
+
+    return { topEntryPages, topExitPages, topPaths };
+  }
+
+  async getPerformanceMetrics(days) {
+    const files = await this.getRecentLogFiles(days);
+    let totalLoadTime = 0;
+    let totalCount = 0;
+
+    for (const file of files) {
+      const events = await this.readLogFile(file);
+      
+      for (const event of events) {
+        if (event.type === 'page_view' && event.loadTime) {
+          totalLoadTime += event.loadTime;
+          totalCount++;
+        }
+      }
+    }
+
+    const avgLoadTime = totalCount > 0 ? totalLoadTime / totalCount : 0;
+
+    return {
+      totalLoadTime,
+      avgLoadTime,
+      totalCount,
+      period: `${days} days`
+    };
   }
 }
 
