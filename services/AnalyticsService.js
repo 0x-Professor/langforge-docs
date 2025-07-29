@@ -429,7 +429,7 @@ class AnalyticsService {
       }
 
       // Analyze each session
-      for (const [sessionId, sessionEvents] of sessions) {
+      for (const [, sessionEvents] of sessions) { // Remove unused sessionId variable
         if (sessionEvents.length === 0) continue;
 
         // Sort by timestamp
@@ -444,28 +444,28 @@ class AnalyticsService {
 
         // Track common paths for sessions with multiple pages
         if (sessionEvents.length > 1) {
-          const pathKey = sessionEvents.map(event => event.page).join(' > ');
-          pathSequences.set(pathKey, (pathSequences.get(pathKey) || 0) + 1);
+          for (let i = 0; i < sessionEvents.length - 1; i++) {
+            const path = `${sessionEvents[i].page} → ${sessionEvents[i + 1].page}`;
+            pathSequences.set(path, (pathSequences.get(path) || 0) + 1);
+          }
         }
       }
     }
 
-    const topEntryPages = Array.from(entryPages.entries())
-      .sort((a, b) => b[1] - a[1])
-      .map(([page, count]) => ({ page, count }))
-      .slice(0, 10);
-
-    const topExitPages = Array.from(exitPages.entries())
-      .sort((a, b) => b[1] - a[1])
-      .map(([page, count]) => ({ page, count }))
-      .slice(0, 10);
-
-    const topPaths = Array.from(pathSequences.entries())
-      .sort((a, b) => b[1] - a[1])
-      .map(([path, count]) => ({ path, count }))
-      .slice(0, 10);
-
-    return { topEntryPages, topExitPages, topPaths };
+    return {
+      entryPages: Array.from(entryPages.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([page, count]) => ({ page, count })),
+      exitPages: Array.from(exitPages.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([page, count]) => ({ page, count })),
+      commonPaths: Array.from(pathSequences.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([path, count]) => ({ path, count }))
+    };
   }
 
   async getPerformanceMetrics(days) {

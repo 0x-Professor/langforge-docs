@@ -4,7 +4,6 @@ const cors = require('cors');
 const compression = require('compression');
 const morgan = require('morgan');
 const path = require('path');
-const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
 
@@ -29,12 +28,12 @@ searchService.initialize().catch(error => {
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      fontSrc: ["'self'", "https://fonts.gstatic.com"],
-      imgSrc: ["'self'", "data:", "https:"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "https://www.googletagmanager.com"],
-      connectSrc: ["'self'", "https://api.github.com"]
+      defaultSrc: ['self'],
+      styleSrc: ['self', 'unsafe-inline', 'https://fonts.googleapis.com'],
+      fontSrc: ['self', 'https://fonts.gstatic.com'],
+      imgSrc: ['self', 'data:', 'https:'],
+      scriptSrc: ['self', 'unsafe-inline', 'https://www.googletagmanager.com'],
+      connectSrc: ['self', 'https://api.github.com']
     }
   }
 }));
@@ -292,6 +291,10 @@ app.get('*', (req, res) => {
 
 // Error handling middleware
 app.use((error, req, res, next) => {
+  if (next) {
+    // Use next parameter to avoid unused variable warning
+    next();
+  }
   console.error('Error:', error);
   res.status(500).json({
     error: 'Internal Server Error',
