@@ -6,16 +6,13 @@ module.exports = {
     jest: true
   },
   extends: [
-    'eslint:recommended',
-    '@typescript-eslint/recommended'
+    'eslint:recommended'
   ],
-  parser: '@typescript-eslint/parser',
   parserOptions: {
     ecmaVersion: 'latest',
     sourceType: 'module'
   },
   plugins: [
-    '@typescript-eslint',
     'security',
     'markdown'
   ],
