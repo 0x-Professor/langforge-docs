@@ -1,4 +1,4 @@
-# Test setup file
+// Test setup file
 global.console = {
   ...console,
   // Uncomment to ignore console.log during tests
