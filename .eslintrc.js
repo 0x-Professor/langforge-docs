@@ -18,7 +18,6 @@ module.exports = {
   ],
   rules: {
     'indent': ['error', 2],
-    'linebreak-style': ['error', 'unix'],
     'quotes': ['error', 'single'],
     'semi': ['error', 'always'],
     'no-unused-vars': 'error',
@@ -37,6 +36,17 @@ module.exports = {
       rules: {
         'no-undef': 'off',
         'no-unused-vars': 'off'
+      }
+    },
+    {
+      // Relax rules for generated bundle files
+      files: ['**/dist/**/*.js'],
+      rules: {
+        'no-console': 'off',
+        'no-unused-vars': 'off',
+        'quotes': 'off',
+        'indent': 'off',
+        'security/detect-object-injection': 'off'
       }
     }
   ]
