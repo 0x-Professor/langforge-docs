@@ -344,7 +344,7 @@ process.on('SIGINT', () => {
 app.listen(PORT, HOST, () => {
   console.log(`🚀 LangForge Documentation Server running at http://${HOST}:${PORT}`);
   console.log(`📚 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔒 Security headers enabled`);
-  console.log(`⚡ Compression enabled`);
-  console.log(`🛡️  Rate limiting active`);
+  console.log('🔒 Security headers enabled');
+  console.log('⚡ Compression enabled');
+  console.log('🛡️  Rate limiting active');
 });
